@@ -18,5 +18,12 @@ EXPORT_DIR = Path(os.environ.get('COSMOSTARS_EXPORT_DIR', ROOT / 'exports'))
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+FRONTEND_DIR = Path(os.environ.get('COSMOSTARS_FRONTEND_DIR', ROOT / 'frontend' / 'dist'))
+# Same-origin by default: the container serves the built interface itself, so
+# nothing has to be allowed in. The variable exists for split-origin work, where
+# the interface runs on the Vite dev server against this service.
+ALLOWED_ORIGINS = [origin for origin in
+                   os.environ.get('COSMOSTARS_ALLOWED_ORIGINS', '*').split(',') if origin]
+
 MAX_RUNS = int(os.environ.get('COSMOSTARS_MAX_RUNS', '64'))
 MAX_UPLOAD_BYTES = int(os.environ.get('COSMOSTARS_MAX_UPLOAD_BYTES', str(64 * 1024 * 1024)))

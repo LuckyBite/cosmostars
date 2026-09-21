@@ -13,11 +13,13 @@ from fastapi import APIRouter, Query
 
 from ..core import compare as compare_mod
 from ..core import scenarios
+from ..core import verify as verify_mod
 from ..core.errors import BadRequest
 from ..core.registry import registry
 from ..planner import GOALS, PLANNERS
 from .schemas import (AdvanceRequest, CloseDownlinkRequest, CreateRun, EventRequest,
-                      ForkRequest, GoalRequest, OutageRequest, UploadScenario)
+                      ForkRequest, GoalRequest, OutageRequest, UploadScenario,
+                      VerifyRequest)
 
 router = APIRouter(prefix='/api')
 
@@ -118,6 +120,16 @@ def fork_run(run_id: str, body: ForkRequest) -> dict[str, Any]:
     return registry.fork(run_id, body.title).info()
 
 
+@router.get('/runs/{run_id}/events')
+def run_events(run_id: str) -> dict[str, Any]:
+    return {'items': registry.get(run_id).events()}
+
+
+@router.get('/runs/{run_id}/contacts')
+def run_contacts(run_id: str) -> dict[str, Any]:
+    return registry.get(run_id).contacts()
+
+
 @router.get('/runs/{run_id}/satellites')
 def satellites(run_id: str) -> dict[str, Any]:
     return {'items': registry.get(run_id).satellites()}
@@ -148,6 +160,16 @@ def feasibility(run_id: str) -> dict[str, Any]:
     return registry.get(run_id).feasibility()
 
 
+@router.get('/runs/{run_id}/jobs/{job_id}/explain')
+def explain_job(run_id: str, job_id: str) -> dict[str, Any]:
+    return registry.get(run_id).explain_job(job_id)
+
+
+@router.get('/runs/{run_id}/slot-prices')
+def slot_prices(run_id: str) -> dict[str, Any]:
+    return {'prices': registry.get(run_id).slot_prices()}
+
+
 @router.get('/runs/{run_id}/downlink-plan')
 def downlink_plan(run_id: str) -> dict[str, Any]:
     plan = registry.get(run_id).downlink_plan()
@@ -157,6 +179,18 @@ def downlink_plan(run_id: str) -> dict[str, Any]:
 @router.get('/runs/{run_id}/result')
 def result(run_id: str) -> dict[str, Any]:
     return registry.get(run_id).result()
+
+
+@router.post('/runs/{run_id}/verify')
+def verify_run(run_id: str) -> dict[str, Any]:
+    """Replay this run's own export: the one-click form of the check below."""
+    return verify_mod.verify(registry.get(run_id).result())
+
+
+@router.post('/verify')
+def verify_export(body: VerifyRequest) -> dict[str, Any]:
+    """Replay an uploaded export through the reference library."""
+    return verify_mod.verify(body.result)
 
 
 @router.get('/compare')

@@ -48,6 +48,12 @@ class ForkRequest(BaseModel):
     title: str | None = None
 
 
+class VerifyRequest(BaseModel):
+    """One saved export in the case result schema, to be recomputed as-is."""
+
+    result: dict[str, Any] = Field(description='Contents of a cosmo-B-ops-result-1.0 file')
+
+
 class UploadScenario(BaseModel):
     key: str = Field(min_length=1, max_length=64, pattern=r'^[A-Za-z0-9_\-]+$')
     scenario: dict[str, Any]

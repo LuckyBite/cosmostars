@@ -29,6 +29,40 @@ WINDOW_CERTIFICATE = 'contact_window_shorter_than_work'
 GROUP_CERTIFICATE = 'satellite_contacts_oversubscribed'
 
 
+def job_certificate(view: StepView, job: Job,
+                    retrospective: bool = False) -> dict[str, Any] | None:
+    """The window test for one job, whether or not its deadline has passed.
+
+    A closed deadline does not retract the proof, and the job an operator
+    clicks on is usually one that already failed. Events only ever remove
+    contact from the current step forward, so evaluating the window against
+    today's environment never invents a past contact that was there.
+
+    Looking back, the claim is about the whole job; looking forward, about the
+    work that is left. The certificate says which of the two it is.
+    """
+    if job['kind'] != 'downlink' or not job['eligible_satellites']:
+        return None
+    required = job['work_steps'] if retrospective else job['remaining_steps']
+    if required <= 0:
+        return None
+    slots = view.downlink_slots(job, from_step=job['release_step'])
+    if len(slots) >= required:
+        return None
+    return {
+        'certificate': WINDOW_CERTIFICATE,
+        'job_id': job['id'],
+        'satellite_id': job['eligible_satellites'][0],
+        'priority': job['priority'],
+        'value_usd': job['value_usd'],
+        'window': [job['release_step'], job['deadline_step']],
+        'contacts_in_window': len(slots),
+        'work_required': required,
+        'basis': 'whole_job' if retrospective else 'work_remaining',
+        'evaluated_at_step': view.step,
+    }
+
+
 def _window_certificates(view: StepView) -> list[dict[str, Any]]:
     out = []
     for job in view.all_jobs().values():
@@ -36,18 +70,9 @@ def _window_certificates(view: StepView) -> list[dict[str, Any]]:
             continue
         if job['deadline_step'] <= view.step:
             continue
-        slots = view.downlink_slots(job, from_step=job['release_step'])
-        if len(slots) < job['remaining_steps']:
-            out.append({
-                'certificate': WINDOW_CERTIFICATE,
-                'job_id': job['id'],
-                'satellite_id': job['eligible_satellites'][0],
-                'priority': job['priority'],
-                'value_usd': job['value_usd'],
-                'window': [job['release_step'], job['deadline_step']],
-                'contacts_in_window': len(slots),
-                'work_required': job['remaining_steps'],
-            })
+        item = job_certificate(view, job)
+        if item is not None:
+            out.append(item)
     return out
 
 

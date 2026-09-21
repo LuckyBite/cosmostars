@@ -13,14 +13,31 @@ from datetime import datetime, timezone
 from typing import Any
 
 from . import config  # noqa: F401  (puts the repository root on sys.path)
+from . import explain as explain_mod
 from .errors import BadRequest, EventRejected
 from ..planner import DEFAULT_PLANNER, StepView, build_planner, check_goal
+from ..planner import downlink as downlink_mod
 from ..planner import feasibility
 from ..planner.smart import SmartPlanner
 
 from model.operations import Session  # noqa: E402
 
 _counter = itertools.count(1)
+
+
+def _intervals(flags: list[Any]) -> list[list[int]]:
+    """Half-open runs of truth in a boolean series: [[start, end), ...]."""
+    out: list[list[int]] = []
+    start: int | None = None
+    for k, flag in enumerate(flags):
+        if flag and start is None:
+            start = k
+        elif not flag and start is not None:
+            out.append([start, k])
+            start = None
+    if start is not None:
+        out.append([start, len(flags)])
+    return out
 
 
 def _now() -> str:
@@ -240,6 +257,50 @@ class Run:
             'critical_soc_pct': env.s['model']['critical_soc_pct'],
             'points': points,
         }
+
+    def events(self) -> list[dict[str, Any]]:
+        """Messages accepted so far, in receipt order.
+
+        The timeline marks each one where it arrived, which is the only honest
+        way to show that nothing ahead of the cursor was known any earlier.
+        """
+        return copy.deepcopy(self.session.events)
+
+    def contacts(self) -> dict[str, Any]:
+        """Contact windows and announced outages, as intervals.
+
+        The interface draws a 48 x 288 canvas over these; sending the raw
+        boolean arrays would be thirteen thousand values per kind, while the
+        windows themselves are a few hundred intervals.
+        """
+        env = self.session.env
+        items = []
+        for sid in sorted(env.sats):
+            row: dict[str, Any] = {'satellite_id': sid}
+            for kind in ('downlink', 'relay'):
+                row[kind] = _intervals(env.s['environment'][sid][kind + '_available'])
+            items.append(row)
+        return {
+            'total_steps': self.total_steps,
+            'items': items,
+            'outages': [{'satellite_id': f['satellite_id'],
+                         'start_step': f['start_step'],
+                         'end_step': f['end_step']} for f in env.s['failures']],
+        }
+
+    def explain_job(self, job_id: str) -> dict[str, Any]:
+        """Layered account of one job's fate: data, contest, satellite."""
+        return explain_mod.explain(self, job_id)
+
+    def slot_prices(self) -> dict[str, Any] | None:
+        """What each contested contact slot cost, when a schedule exists."""
+        if not isinstance(self.planner, SmartPlanner):
+            return None
+        self.view.refresh()
+        schedule = self.planner.schedule
+        if schedule is None:
+            return None
+        return downlink_mod.slot_prices(self.view, schedule)
 
     def feasibility(self) -> dict[str, Any]:
         self.view.refresh()

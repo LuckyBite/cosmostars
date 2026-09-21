@@ -34,6 +34,7 @@ class DownlinkSchedule:
     unreachable: list[dict[str, Any]] = field(default_factory=list)
     displaced: list[dict[str, Any]] = field(default_factory=list)
     built_at_step: int = 0
+    forced: list[str] = field(default_factory=list)
 
     def job_for(self, sid: str, step: int) -> str | None:
         return self.by_step.get(step, {}).get(sid)
@@ -44,6 +45,7 @@ class DownlinkSchedule:
             'selected_jobs': sorted(self.selected),
             'unreachable': self.unreachable,
             'displaced': self.displaced,
+            'forced': list(self.forced),
             'assignments': {str(k): v for k, v in sorted(self.by_step.items())},
         }
 
@@ -110,7 +112,8 @@ def _open_downlink_jobs(view: StepView) -> tuple[list[Job], dict[str, list[int]]
     return jobs, slots
 
 
-def build_schedule(view: StepView, goal: str) -> DownlinkSchedule:
+def build_schedule(view: StepView, goal: str,
+                   forced: tuple[str, ...] = ()) -> DownlinkSchedule:
     """Pick the most valuable set of downlink jobs that can all be completed.
 
     Jobs are offered in goal order and kept only if the whole selection stays
@@ -118,8 +121,13 @@ def build_schedule(view: StepView, goal: str) -> DownlinkSchedule:
     single-step jobs this ordering is provably optimal; with multi-step jobs it
     is a lower bound, and the ceiling below reports the distance to the relaxed
     flow optimum.
+
+    ``forced`` offers the named jobs ahead of the goal order. The schedule that
+    comes back is then the answer to "what would it cost to serve this job":
+    whatever leaves the selection is the price of that decision, which is how
+    the operator's explain panel grounds a trade-off instead of asserting one.
     """
-    schedule = DownlinkSchedule(built_at_step=view.step)
+    schedule = DownlinkSchedule(built_at_step=view.step, forced=sorted(forced))
     candidates, slots = _open_downlink_jobs(view)
     open_jobs: list[Job] = []
     for job in candidates:
@@ -138,7 +146,10 @@ def build_schedule(view: StepView, goal: str) -> DownlinkSchedule:
         return schedule
 
     network = _Network(open_jobs, slots, view.model['downlink_parallel_limit'])
-    ordered = sorted(open_jobs, key=lambda j: (-job_score(j, goal), j['deadline_step'], j['id']))
+    forced_set = set(forced)
+    ordered = sorted(open_jobs, key=lambda j: (j['id'] not in forced_set,
+                                               -job_score(j, goal),
+                                               j['deadline_step'], j['id']))
     chosen: list[Job] = []
     need = 0
     assignment: dict[str, list[int]] = {}
@@ -182,4 +193,86 @@ def ceiling(view: StepView) -> dict[str, Any]:
         'work_steps_schedulable': served,
         'jobs_open': len(jobs),
         'jobs_unreachable_by_window': len(jobs) - len(reachable),
+    }
+
+
+def contention(view: StepView) -> dict[tuple[str, int], list[Job]]:
+    """Which downlink jobs could still use each satellite-step of contact.
+
+    A downlink job is bound to one satellite, so a contact slot is contested by
+    exactly the open jobs of that satellite whose execution window covers it.
+    This is the raw material for two answers the operator asks for: what a slot
+    cost, and who took the slot a failed job needed.
+    """
+    board: dict[tuple[str, int], list[Job]] = {}
+    for job in view.all_jobs().values():
+        if job['kind'] != 'downlink' or job['completed_step'] is not None:
+            continue
+        if job['deadline_step'] <= view.step:
+            continue
+        sid = job['eligible_satellites'][0]
+        for k in view.downlink_slots(job):
+            board.setdefault((sid, k), []).append(job)
+    return board
+
+
+def _rival_rank(job: Job) -> tuple[int, float]:
+    return (job['priority'], float(job['value_usd']))
+
+
+def slot_prices(view: StepView, schedule: DownlinkSchedule) -> dict[str, Any]:
+    """Opportunity cost of every contested contact slot in the rest of the shift.
+
+    The price of a slot is the best job that wanted it and ends the shift
+    unserved: give the slot away and that job is what the shift gave up. When
+    every rival for a slot is served anyway the price is zero — ground contact
+    is not scarce there, and saying so is as much of an answer as a number.
+
+    Reported next to the schedule rather than inside it: this is diagnostics
+    about a decision already taken, not an input to the decision.
+    """
+    board = contention(view)
+    served = schedule.selected
+    certified = {item['job_id'] for item in schedule.unreachable}
+    rows: list[dict[str, Any]] = []
+    for (sid, step), jobs in sorted(board.items(), key=lambda item: (item[0][1], item[0][0])):
+        winner = schedule.job_for(sid, step)
+        rivals = [job for job in jobs if job['id'] != winner]
+        unserved = [job for job in rivals if job['id'] not in served]
+        best = max(unserved, key=_rival_rank) if unserved else None
+        rows.append({
+            'step': step,
+            'satellite_id': sid,
+            'job_id': winner,
+            'rivals': len(rivals),
+            'rivals_unserved': len(unserved),
+            'price_usd': round(float(best['value_usd']), 6) if best else 0.0,
+            'price_priority': best['priority'] if best else None,
+            'price_job_id': best['id'] if best else None,
+            'basis': ('unused_contact' if winner is None else
+                      'best_unserved_rival' if best else 'every_rival_served'),
+            # Why that rival went unserved decides how the number reads. A slot
+            # left idle because its only claimant cannot finish inside its own
+            # window is a property of the scenario; a slot lost to a better job
+            # is a trade-off we chose. The panel must not conflate the two.
+            'price_ground': (None if best is None else
+                             'unreachable_by_window' if best['id'] in certified
+                             else 'lost_to_selection'),
+        })
+    priced = [row for row in rows if row['price_usd'] > 0]
+    return {
+        'built_at_step': schedule.built_at_step,
+        'rows': rows,
+        'totals': {
+            'contact_slots': len(rows),
+            'slots_assigned': sum(1 for row in rows if row['job_id'] is not None),
+            'slots_unused': sum(1 for row in rows if row['job_id'] is None),
+            'slots_priced': len(priced),
+            'slots_idle_for_certified_job': sum(
+                1 for row in rows
+                if row['job_id'] is None and row['price_ground'] == 'unreachable_by_window'),
+            'price_max_usd': round(max((row['price_usd'] for row in priced), default=0.0), 6),
+            'price_mean_usd': round(sum(row['price_usd'] for row in priced) / len(priced), 6)
+                              if priced else 0.0,
+        },
     }
