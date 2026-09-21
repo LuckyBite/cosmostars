@@ -115,18 +115,18 @@ export function EventsCard({ run }: { run: RunInfo }) {
         <div className="acts">
           <button className="btn" disabled={busy || !parseIds().length}
                   onClick={() => outage.mutate(interval())}>
-            недоступность аппаратов
+            Недоступность аппаратов
           </button>
           <button className="btn" disabled={busy || !parseIds().length}
                   onClick={() => close.mutate(interval())}>
-            отмена сеансов связи
+            Отмена сеансов связи
           </button>
           <button className="btn" disabled={busy || !satellites.length}
                   onClick={() => post.mutate(demoJobs(run, satellites))}>
-            <Send size={14} aria-hidden /> срочные задания
+            <Send size={14} aria-hidden /> Срочные задания
           </button>
           <label className="btn">
-            <FileUp size={14} aria-hidden /> файл сообщений
+            <FileUp size={14} aria-hidden /> Файл сообщений
             <input type="file" accept="application/json" hidden
                    onChange={(e) => e.target.files?.[0] && playFile(e.target.files[0])} />
           </label>

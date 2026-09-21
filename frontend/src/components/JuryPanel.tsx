@@ -55,7 +55,7 @@ const ROUTES: Route[] = [
     title: 'Результат смены и потолок выполнимости',
     what: 'Считает сутки на P02 целиком и открывает итог: обязательства, выручка, ресурсы — и рядом верхняя граница по связи с ценой недостижимого.',
     run: async (ctx) => {
-      const run = await start('P02_shift', 'priority', 'cosmostars', 'Жюри · итог смены')
+      const run = await start('P02_shift', 'priority', 'cosmostars', 'Показ · итог смены')
       ctx.say('Считаем 288 шагов…')
       await api.advance(run.run_id, { to_step: run.total_steps })
       ctx.open(run.run_id)
@@ -68,7 +68,7 @@ const ROUTES: Route[] = [
     title: 'Новые сведения не переписывают прошлое',
     what: 'Останавливает смену перед шагом 72 и открывает полотно. Дальше вбросьте сообщение на вкладке «Смена» — перерисуется только правая часть, левая не сдвинется.',
     run: async (ctx) => {
-      const run = await start('P02_shift', 'priority', 'cosmostars', 'Жюри · туман войны')
+      const run = await start('P02_shift', 'priority', 'cosmostars', 'Показ · туман войны')
       await api.advance(run.run_id, { to_step: 72 })
       ctx.open(run.run_id)
       ctx.tab('canvas')
@@ -81,7 +81,7 @@ const ROUTES: Route[] = [
     title: 'Работа при изменениях обстановки',
     what: 'Доводит смену до шага 72, принимает срочные задания и отмену сеансов на трёх аппаратах, продолжает до 120 и показывает, что удалось сохранить.',
     run: async (ctx) => {
-      const run = await start('P02_shift', 'priority', 'cosmostars', 'Жюри · сообщения')
+      const run = await start('P02_shift', 'priority', 'cosmostars', 'Показ · сообщения')
       await api.advance(run.run_id, { to_step: 72 })
       const sats = await satellitesOf(run)
       ctx.say('Принимаем срочные задания…')
@@ -100,7 +100,7 @@ const ROUTES: Route[] = [
     title: 'Почему задание не вышло',
     what: 'Считает смену и открывает первое просроченное задание связи с разбором: сертификат против данных, конкуренция за контакт, отказ аппарата.',
     run: async (ctx) => {
-      const run = await start('P02_shift', 'priority', 'cosmostars', 'Жюри · разбор потерь')
+      const run = await start('P02_shift', 'priority', 'cosmostars', 'Показ · разбор потерь')
       await api.advance(run.run_id, { to_step: run.total_steps })
       const missed = await api.jobs(run.run_id, { status: 'missed', limit: 50 })
       const target = missed.items.find((item) => item.kind === 'downlink') ?? missed.items[0]
@@ -118,9 +118,9 @@ const ROUTES: Route[] = [
     title: 'Две цели управления из одного состояния',
     what: 'Берёт P04 с перегрузкой, доводит до шага 72, делает ветвь, переключает её на выручку и досчитывает обе. Цели расходятся только при дефиците — здесь он есть, и видно, чем платит каждая.',
     run: async (ctx) => {
-      const base = await start('P04_demand', 'priority', 'cosmostars', 'Жюри · цель приоритет')
+      const base = await start('P04_demand', 'priority', 'cosmostars', 'Показ · цель приоритет')
       await api.advance(base.run_id, { to_step: 72 })
-      const branch = await api.fork(base.run_id, 'Жюри · цель выручка')
+      const branch = await api.fork(base.run_id, 'Показ · цель выручка')
       await api.setGoal(branch.run_id, 'revenue')
       ctx.say('Досчитываем обе ветви до конца смены…')
       await api.advance(base.run_id, { to_step: base.total_steps })
@@ -138,8 +138,8 @@ const ROUTES: Route[] = [
     title: 'Наш планировщик против простого правила',
     what: 'Гоняет P03 с дефицитом энергии двумя планировщиками на одних условиях и ставит их рядом в сравнении.',
     run: async (ctx) => {
-      const ours = await start('P03_energy', 'priority', 'cosmostars', 'Жюри · cosmostars на P03')
-      const base = await start('P03_energy', 'priority', 'baseline-edf', 'Жюри · baseline-edf на P03')
+      const ours = await start('P03_energy', 'priority', 'cosmostars', 'Показ · cosmostars на P03')
+      const base = await start('P03_energy', 'priority', 'baseline-edf', 'Показ · baseline-edf на P03')
       ctx.say('Считаем обе смены целиком…')
       await api.advance(ours.run_id, { to_step: ours.total_steps })
       await api.advance(base.run_id, { to_step: base.total_steps })
@@ -156,7 +156,7 @@ const ROUTES: Route[] = [
     title: 'Проверка расчёта в браузере',
     what: 'Считает смену и прогоняет её выгрузку через replay_episode выданной библиотеки: хеш сценария, сводка и журнал построчно.',
     run: async (ctx) => {
-      const run = await start('P02_shift', 'priority', 'cosmostars', 'Жюри · воспроизводимость')
+      const run = await start('P02_shift', 'priority', 'cosmostars', 'Показ · воспроизводимость')
       await api.advance(run.run_id, { to_step: run.total_steps })
       ctx.open(run.run_id)
       ctx.tab('verify')
@@ -169,7 +169,7 @@ const ROUTES: Route[] = [
     title: 'Поведение при перегрузке',
     what: 'Открывает P04 — 8120 заданий на те же 458 окон связи. Там цели расходятся, и видно, чем именно платит каждая.',
     run: async (ctx) => {
-      const run = await start('P04_demand', 'priority', 'cosmostars', 'Жюри · перегрузка')
+      const run = await start('P04_demand', 'priority', 'cosmostars', 'Показ · перегрузка')
       ctx.say('Считаем 8120 заданий…')
       await api.advance(run.run_id, { to_step: run.total_steps })
       ctx.open(run.run_id)
@@ -211,8 +211,8 @@ export function JuryPanel({ run }: { run: RunInfo }) {
 
   return (
     <>
-      <Card title="Маршруты по критериям"
-            note="Каждая кнопка приводит сервис в состояние, в котором соответствующий критерий можно проверить своими руками, и открывает нужный экран. Ничего не имитируется: это обычные запросы к тому же API.">
+      <Card title="Показ — маршруты по критериям"
+            note="Каждая кнопка приводит сервис в состояние, где соответствующий критерий проверяется своими руками, и открывает нужный экран. Ничего не имитируется: это обычные запросы к тому же API.">
         {note && <Note><span>{note}</span></Note>}
         {failure && <div className="note failure"><span><b>Маршрут не прошёл.</b> {failure}</span></div>}
         <div className="routes">
@@ -223,10 +223,10 @@ export function JuryPanel({ run }: { run: RunInfo }) {
                 <h3>{route.title}</h3>
               </header>
               <p>{route.what}</p>
-              <button className="btn primary" disabled={!!busy} onClick={() => go(route)}>
+              <button className="btn" disabled={!!busy} onClick={() => go(route)}>
                 {busy === route.id
-                  ? <><Loader2 size={14} className="spin" aria-hidden /> готовим…</>
-                  : <>показать <ArrowRight size={14} aria-hidden /></>}
+                  ? <><Loader2 size={14} className="spin" aria-hidden /> Готовим…</>
+                  : <>Показать <ArrowRight size={14} aria-hidden /></>}
               </button>
             </article>
           ))}
@@ -248,6 +248,8 @@ export function JuryPanel({ run }: { run: RunInfo }) {
           <dd>дерево смены по шагу ветвления и сравнение пары с проверкой сопоставимости</dd>
           <dt>Проверка</dt>
           <dd>пересчёт выгрузки выданной библиотекой прямо в браузере</dd>
+          <dt>Показ</dt>
+          <dd>этот экран: маршруты, которые приводят пульт в нужное состояние одним нажатием</dd>
         </dl>
         <p className="tbl-note">
           Регламент защиты короткий, поэтому маршруты сделаны в один клик. Любой из них можно

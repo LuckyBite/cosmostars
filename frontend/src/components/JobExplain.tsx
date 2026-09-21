@@ -4,7 +4,7 @@ import type { DownlinkContest, RelayContest, RunInfo } from '../api/types'
 import { useConsole } from '../store'
 import {
   CERTIFICATES, Card, Chip, Empty, Failure, IDLE_REASONS, Loading, Note, VERDICTS,
-  action, num, reason, usd,
+  action, num, reason, steps as stepsWord, usd,
 } from '../ui'
 import { WindowProof } from './charts'
 
@@ -49,7 +49,7 @@ export function JobExplain({ run }: { run: RunInfo }) {
       note={<>
         {data.job.kind === 'downlink' ? 'наземная связь' : 'ретрансляция'} · приоритет {data.job.priority} ·
         {' '}{usd(data.job.value_usd)} · окно {data.job.window[0]}–{data.job.window[1]} ·
-        {' '}работы {data.job.work_steps} шагов, выполнено {data.job.progress_steps}
+        {' '}работы {stepsWord(data.job.work_steps)}, выполнено {data.job.progress_steps}
       </>}
       right={<button className="btn icon" aria-label="Закрыть разбор" onClick={() => selectJob(null)}>
         <X size={14} />
@@ -104,8 +104,15 @@ export function JobExplain({ run }: { run: RunInfo }) {
             <p className="off">Разбор конкуренции для этого задания не собрался.</p>
           ) : contest.kind === 'downlink' ? (
             <DownlinkLayer contest={contest} onStep={setCursor} />
-          ) : (
+          ) : contest.kind === 'relay' ? (
             <RelayLayer contest={contest} />
+          ) : (
+            // A service that answers with a shape this build does not know says
+            // so here. Guessing at it once cost the whole console a blank page.
+            <p className="off">
+              Сервис ответил разбором конкуренции в незнакомом виде — ни связь, ни ретрансляция.
+              Остальные слои ниже собраны и верны.
+            </p>
           )}
         </li>
 

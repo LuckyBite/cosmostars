@@ -9,9 +9,9 @@
 
 import { create } from 'zustand'
 
-export type Tab = 'shift' | 'canvas' | 'sats' | 'jobs' | 'branches' | 'verify' | 'jury'
+export type Tab = 'shift' | 'canvas' | 'sats' | 'jobs' | 'branches' | 'verify' | 'show'
 
-export const SPEEDS = [1, 4, 8, 16, 32] as const
+export const SPEEDS = [1, 4, 8, 32] as const
 export type Speed = (typeof SPEEDS)[number]
 
 interface ConsoleState {
@@ -30,6 +30,8 @@ interface ConsoleState {
   openRun: (runId: string) => void
   closeRun: () => void
   setTab: (tab: Tab) => void
+  /** Cursor and screen in one update: the attention panel moves both at once. */
+  jumpTo: (step: number, tab?: Tab, job?: string | null) => void
   /** Called whenever the service reports a new executed frontier. */
   syncFrontier: (step: number) => void
   setCursor: (step: number) => void
@@ -100,6 +102,18 @@ export const useConsole = create<ConsoleState>((set, get) => ({
     set({ runId: null, frontier: 0, cursor: 0, playing: false, follow: true })
   },
   setTab: (tab) => set({ tab }),
+  // Two updates would render an intermediate frame: the new screen still on the
+  // old cursor. One update, and the operator only ever sees the destination.
+  jumpTo: (step, tab, job) => set((state) => {
+    const cursor = Math.max(0, Math.min(step, state.frontier))
+    return {
+      cursor,
+      follow: cursor >= state.frontier,
+      playing: false,
+      tab: tab ?? state.tab,
+      selectedJob: job === undefined ? state.selectedJob : job,
+    }
+  }),
   syncFrontier: (step) => set((state) => ({
     frontier: step,
     cursor: state.follow ? step : Math.min(state.cursor, step),

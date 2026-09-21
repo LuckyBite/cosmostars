@@ -32,10 +32,10 @@ export function VerifyPanel({ run }: { run: RunInfo }) {
             note="Выгрузка прогоняется через replay_episode выданной библиотеки и сверяется с собой: хеш исходного сценария, сводка и журнал построчно.">
         <div className="acts">
           <button className="btn primary" disabled={check.isPending} onClick={() => check.mutate()}>
-            <RefreshCw size={14} aria-hidden /> проверить текущую смену
+            <RefreshCw size={14} aria-hidden /> Проверить текущую смену
           </button>
           <label className="btn">
-            <FileUp size={14} aria-hidden /> проверить файл выгрузки
+            <FileUp size={14} aria-hidden /> Проверить файл выгрузки
             <input type="file" accept="application/json" hidden
                    onChange={(e) => e.target.files?.[0] && upload.mutate(e.target.files[0])} />
           </label>
@@ -199,7 +199,7 @@ function AuditCard({ run }: { run: RunInfo }) {
 }
 
 const Verdict = ({ ok }: { ok: boolean }) =>
-  ok ? <Chip tone="good">сошлось</Chip> : <Chip tone="crit">разошлось</Chip>
+  ok ? <Chip tone="good">Сошлось</Chip> : <Chip tone="crit">Разошлось</Chip>
 
 const Tileish = ({ label, value }: { label: string; value: string }) => (
   <div className="tile"><span className="k">{label}</span><span className="v">{value}</span></div>

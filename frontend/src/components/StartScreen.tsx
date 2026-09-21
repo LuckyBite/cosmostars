@@ -1,14 +1,20 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, Radio, SlidersHorizontal, Upload } from 'lucide-react'
+import { Play, SlidersHorizontal, Upload } from 'lucide-react'
 import { api, useRuns, useScenarios, usePlanners, ApiError, type DeriveBody } from '../api/client'
 import type { DerivedFrom, Goal, ScenarioBrief } from '../api/types'
 import { useConsole } from '../store'
 import { Chip, Failure, Loading, Note, num, usd } from '../ui'
+import { Mark } from './Mark'
+
+// The launch parameters used to sit above the cards and apply to whichever card
+// was clicked — invisibly. Now a card is only a choice, and everything that
+// decides how the shift will run lives in one pinned bar with the button that
+// starts it. What you set is next to what it sets.
 
 const GOALS: { id: Goal; label: string; note: string }[] = [
-  { id: 'priority', label: 'приоритет', note: 'сначала обязательства третьего приоритета' },
-  { id: 'revenue', label: 'выручка', note: 'сначала самые дорогие задания' },
+  { id: 'priority', label: 'Приоритет', note: 'Сначала обязательства третьего приоритета' },
+  { id: 'revenue', label: 'Выручка', note: 'Сначала самые дорогие задания' },
 ]
 
 // One line per planner. The list itself comes from the service, so a planner
@@ -20,6 +26,8 @@ const PLANNER_NOTES: Record<string, string> = {
   'cosmostars-match': 'ретрансляция паросочетанием',
 }
 
+const QUICK_SCENARIO = 'P02_shift'
+
 export function StartScreen() {
   const { data, isPending, error } = useScenarios()
   const { data: runs } = useRuns()
@@ -29,12 +37,34 @@ export function StartScreen() {
   const [goal, setGoal] = useState<Goal>('priority')
   const [planner, setPlanner] = useState('cosmostars')
   const [picked, setPicked] = useState<string | null>(null)
+  const [quick, setQuick] = useState(false)
 
+  const scenarios = data?.items ?? []
   const plannerList = planners.data?.planners
     ?? Object.keys(PLANNER_NOTES).map((name) => ({ name, version: '' }))
 
+  const chosen = scenarios.find((item) => item.key === picked)
+    ?? scenarios.find((item) => item.key === QUICK_SCENARIO)
+    ?? scenarios[0]
+
   const create = useMutation<unknown, ApiError, { scenario_key: string }>({
     mutationFn: ({ scenario_key }) => api.createRun({ scenario_key, goal, planner }),
+    onSuccess: (run) => {
+      client.invalidateQueries({ queryKey: ['runs'] })
+      openRun((run as { run_id: string }).run_id)
+    },
+  })
+
+  // The short path: one press computes the whole day and opens the summary,
+  // because a demonstration that starts with a form is a demonstration lost.
+  const show = useMutation<unknown, ApiError, void>({
+    mutationFn: async () => {
+      const run = await api.createRun({
+        scenario_key: QUICK_SCENARIO, goal: 'priority', planner: 'cosmostars',
+      }) as { run_id: string; total_steps: number }
+      await api.advance(run.run_id, { to_step: run.total_steps })
+      return run
+    },
     onSuccess: (run) => {
       client.invalidateQueries({ queryKey: ['runs'] })
       openRun((run as { run_id: string }).run_id)
@@ -50,28 +80,103 @@ export function StartScreen() {
     onSuccess: () => client.invalidateQueries({ queryKey: ['scenarios'] }),
   })
 
+  const busy = create.isPending || show.isPending
+
   return (
     <div className="start">
-      <div className="wrap">
-        <header className="start-head">
-          <div className="brand">
-            <b>Пульт наземной смены</b>
-            <span><Radio size={12} aria-hidden /> Cosmostars · автономное управление группировкой</span>
+      <div className="start-body">
+        <div className="start-inner">
+          <div className="start-top">
+            <div className="start-hero">
+              <div className="line">
+                <Mark size={26} />
+                <b>Пульт наземной смены</b>
+              </div>
+              <div className="kicker">Cosmostars · автономное управление группировкой</div>
+              <p>
+                Смена считается целиком и мгновенно, а проигрывается по записанной истории.
+                Выберите смену — цель управления и планировщик задаются перед запуском, внизу.
+              </p>
+            </div>
+
+            <div className="quick">
+              <span className="k">Короткий путь</span>
+              <b>Демонстрация за три минуты</b>
+              <p>
+                Суточная смена {QUICK_SCENARIO} считается целиком, открывается итог с потолком
+                выполнимости и разбором потерь.
+              </p>
+              <button className="btn primary" disabled={busy}
+                      onClick={() => { setQuick(true); show.mutate() }}>
+                <Play size={14} fill="currentColor" strokeWidth={0} aria-hidden />
+                {show.isPending && quick ? 'Считаем смену…' : 'Запустить показ'}
+              </button>
+            </div>
           </div>
-          <p>
-            Выберите смену, цель управления и планировщик. Расчёт мгновенный: смена считается
-            целиком, а проигрывание идёт по записанной истории — ждать пять минут за каждый
-            шаг модели не нужно.
-          </p>
-        </header>
 
-        <Failure error={create.error ?? error} what="Смену открыть не удалось" />
-        <Failure error={upload.error as ApiError | null} what="Сценарий не принят" />
+          <Failure error={create.error ?? show.error ?? error} what="Смену открыть не удалось" />
+          <Failure error={upload.error as ApiError | null} what="Сценарий не принят" />
 
-        <div className="start-controls">
+          <div className="start-section">
+            <header>
+              <h2>Смены кейса</h2>
+              <span>Шаг модели — 5 минут. Выберите карточку, параметры запуска ниже.</span>
+            </header>
+            {isPending && <Loading what="Каталог смен" />}
+            <div className="cards">
+              {scenarios.map((item) => (
+                <ScenarioCard key={item.key} item={item}
+                              active={chosen?.key === item.key}
+                              onPick={() => setPicked(item.key)} />
+              ))}
+            </div>
+          </div>
+
+          <details className="start-more">
+            <summary>
+              Уже открытые смены{runs?.items.length ? ` · ${runs.items.length}` : ''} ·
+              и загрузка своего сценария
+            </summary>
+            <div className="body">
+              {runs?.items.map((item) => (
+                <div className="run-row" key={item.run_id}>
+                  <span className="mono">{item.run_id.slice(0, 6)}</span>
+                  <span>{item.scenario_key} · {item.goal === 'priority' ? 'приоритет' : 'выручка'}</span>
+                  <Chip>{item.step} / {item.total_steps}</Chip>
+                  {item.parent_id && <Chip tone="good">Ветвь</Chip>}
+                  <button className="btn" onClick={() => openRun(item.run_id)}>Открыть</button>
+                </div>
+              ))}
+              {!runs?.items.length && <p className="tbl-note">Открытых смен пока нет.</p>}
+              <label className="btn upload">
+                <Upload size={14} aria-hidden /> Загрузить свой сценарий
+                <input type="file" accept="application/json" hidden
+                       onChange={(e) => e.target.files?.[0] && upload.mutate(e.target.files[0])} />
+              </label>
+            </div>
+          </details>
+
+          <DeriveConditions
+            scenarios={scenarios}
+            onSaved={(item) => {
+              client.invalidateQueries({ queryKey: ['scenarios'] })
+              setPicked(item.key)
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="launch">
+        <div className="launch-inner">
+          <div className="launch-what">
+            <span className="k">К запуску</span>
+            <b>{chosen?.key ?? '—'}</b>
+            <span>{chosen?.title ?? 'Каталог ещё загружается'}</span>
+          </div>
+
           <div className="field">
-            <label>Цель управления</label>
-            <div className="seg" role="group">
+            <label id="start-goal">Цель управления</label>
+            <div className="seg" role="group" aria-labelledby="start-goal">
               {GOALS.map((item) => (
                 <button key={item.id} aria-pressed={goal === item.id} title={item.note}
                         onClick={() => setGoal(item.id)}>
@@ -80,6 +185,7 @@ export function StartScreen() {
               ))}
             </div>
           </div>
+
           <div className="field">
             <label htmlFor="planner">Планировщик</label>
             <select id="planner" value={planner} onChange={(e) => setPlanner(e.target.value)}>
@@ -89,58 +195,82 @@ export function StartScreen() {
                 </option>
               ))}
             </select>
-            <span className="hint">
-              Третий — тот же наш планировщик с одной заменой: ретрансляция раздаётся точным
-              паросочетанием. На перегрузке он берёт больше выручки и меньше обязательств,
-              то есть проигрывает под целью «приоритет». Сравните сами на вкладке «Ветви».
-            </span>
           </div>
-          <label className="btn upload">
-            <Upload size={14} aria-hidden /> Свой сценарий
-            <input type="file" accept="application/json" hidden
-                   onChange={(e) => e.target.files?.[0] && upload.mutate(e.target.files[0])} />
-          </label>
+
+          <button className="btn primary" disabled={!chosen || busy}
+                  onClick={() => { setQuick(false); chosen && create.mutate({ scenario_key: chosen.key }) }}>
+            <Play size={14} fill="currentColor" strokeWidth={0} aria-hidden />
+            {create.isPending ? 'Открываем…' : 'Открыть смену'}
+          </button>
         </div>
-
-        <DeriveConditions
-          scenarios={data?.items ?? []}
-          onSaved={(item) => {
-            client.invalidateQueries({ queryKey: ['scenarios'] })
-            setPicked(item.key)
-          }}
-        />
-
-        {isPending && <Loading what="Каталог смен" />}
-        <div className="cards">
-          {data?.items.map((item) => (
-            <ScenarioCard
-              key={item.key}
-              item={item}
-              active={picked === item.key}
-              busy={create.isPending && picked === item.key}
-              onPick={() => { setPicked(item.key); create.mutate({ scenario_key: item.key }) }}
-            />
-          ))}
-        </div>
-
-        {!!runs?.items.length && (
-          <div className="start-runs">
-            <h2>Уже открытые смены</h2>
-            <ul>
-              {runs.items.map((item) => (
-                <li key={item.run_id}>
-                  <button className="btn" onClick={() => openRun(item.run_id)}>
-                    <span className="mono">{item.run_id.slice(0, 6)}</span> {item.title}
-                    <Chip>{item.step} / {item.total_steps}</Chip>
-                    {item.parent_id && <Chip tone="good">ветвь</Chip>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
     </div>
+  )
+}
+
+/** How hard this scenario leans on the constellation, from the catalogue alone.
+ *
+ *  The real supply of contact windows is only known once a shift is open, so the
+ *  bar is drawn against the one bound the catalogue itself states: every
+ *  satellite for every step of the shift. A scenario that crosses that mark asks
+ *  for more work than the constellation physically has time to do, whatever the
+ *  planner decides — which is exactly what separates P04 from the rest. */
+function demand(item: ScenarioBrief) {
+  const supply = Math.max(item.steps * item.satellites, 1)
+  const ratio = item.work_steps_total / supply
+  const mood = item.steps <= 48
+    ? { tone: 'var(--s1)', text: 'Короткая. Для знакомства с пультом' }
+    : ratio >= 1
+      ? { tone: 'var(--crit)', text: 'Перегрузка. Работы больше, чем аппарато-шагов' }
+      : ratio >= 0.5
+        ? { tone: 'var(--warn)', text: 'Плотно. Ресурс смены расписан почти весь' }
+        : { tone: 'var(--s3)', text: 'Норма. Работа укладывается в ресурс' }
+  return { supply, ratio, ...mood }
+}
+
+function ScenarioCard({ item, active, onPick }: {
+  item: ScenarioBrief; active: boolean; onPick: () => void
+}) {
+  const load = demand(item)
+  return (
+    <button className="scn" aria-pressed={active} onClick={onPick}
+            style={{ ['--tone' as string]: load.tone }}>
+      <div className="scn-head">
+        <div className="scn-key">
+          <b>{item.key}</b>
+          <span>{item.steps} шагов</span>
+        </div>
+        <span>{item.title}</span>
+        {item.source === 'derived' && <Chip tone="cert">Изменённые условия</Chip>}
+        {item.source === 'uploaded' && <Chip>Загружен</Chip>}
+      </div>
+
+      <div className="scn-mood"><i />{load.text}</div>
+
+      <div className="scn-nums">
+        <div><span>Аппаратов</span><b>{item.satellites}</b></div>
+        <div><span>Заданий</span><b>{num(item.jobs_total)}</b></div>
+        <div><span>Приоритет 3</span><b>{num(item.jobs_by_priority['3'] ?? 0)}</b></div>
+      </div>
+
+      <div className="scn-demand">
+        <div className="row">
+          <span>Спрос на группировку</span>
+          <b>{num(item.work_steps_total)} / {num(load.supply)}</b>
+        </div>
+        <div className="track">
+          <i style={{ width: `${Math.min(100, 100 * load.ratio)}%` }} />
+          <u style={{ left: '100%' }} />
+        </div>
+        <span>Аппарато-шаги работы против всего ресурса смены</span>
+      </div>
+
+      {item.derived_from && <p className="changes">{describeChanges(item.derived_from)}</p>}
+      <p className="changes">
+        Цена смены {usd(item.value_total_usd)} · заданий связи {num(item.jobs_downlink)}
+        {' '}при пределе {item.downlink_parallel_limit} передачи на шаг
+      </p>
+    </button>
   )
 }
 
@@ -196,7 +326,7 @@ function DeriveConditions({ scenarios, onSaved }: {
         сменой честно предупредит, что условия разные, а выгрузка запомнит, что именно изменили.
       </p>
       <Failure error={derive.error} what="Сценарий не сохранён" />
-      {saved && <Note><span>Сохранён сценарий <b>{saved}</b> — он появился в каталоге ниже.</span></Note>}
+      {saved && <Note><span>Сохранён сценарий <b>{saved}</b> — он появился в каталоге выше.</span></Note>}
       <div className="event-forms">
         <div className="field wide">
           <label htmlFor="d-base">Исходный сценарий</label>
@@ -266,33 +396,5 @@ function describeChanges(origin: DerivedFrom): string {
   for (const outage of origin.changes.outages ?? []) {
     parts.push(`${outage.satellite_id} недоступен ${outage.start_step}–${outage.end_step}`)
   }
-  return `из ${origin.scenario}: ${parts.join(', ')}`
-}
-
-function ScenarioCard({ item, active, busy, onPick }: {
-  item: ScenarioBrief; active: boolean; busy: boolean; onPick: () => void
-}) {
-  return (
-    <article className={'scn' + (active ? ' active' : '')}>
-      <header>
-        <h3>{item.key}</h3>
-        <span>{item.title}</span>
-        {item.source === 'derived' && <Chip tone="cert">изменённые условия</Chip>}
-        {item.source === 'uploaded' && <Chip>загружен</Chip>}
-      </header>
-      {item.derived_from && <p className="changes">{describeChanges(item.derived_from)}</p>}
-      <dl className="dl">
-        <dt>Аппаратов</dt><dd>{item.satellites}</dd>
-        <dt>Заданий</dt><dd>{num(item.jobs_total)}</dd>
-        <dt>из них связь</dt><dd>{num(item.jobs_downlink)}</dd>
-        <dt>Приоритет 3</dt><dd>{num(item.jobs_by_priority['3'])}</dd>
-        <dt>Цена смены</dt><dd>{usd(item.value_total_usd)}</dd>
-        <dt>Длительность</dt><dd>{item.steps} шагов · {item.duration_hours} ч</dd>
-        <dt>Известные отказы</dt><dd>{item.known_outages}</dd>
-      </dl>
-      <button className="btn primary" onClick={onPick} disabled={busy}>
-        <Play size={14} aria-hidden /> {busy ? 'Открываем…' : 'Открыть смену'}
-      </button>
-    </article>
-  )
+  return `Из ${origin.scenario}: ${parts.join(', ')}`
 }

@@ -37,7 +37,7 @@ function RunNode({ data }: NodeProps<Node<RunNodeData>>) {
         <Chip>{run.goal === 'priority' ? 'приоритет' : 'выручка'}</Chip>
         <Chip>{run.planner}</Chip>
         <Chip>{run.step} / {run.total_steps}</Chip>
-        {!!run.events_received && <Chip tone="ser">сообщений {run.events_received}</Chip>}
+        {!!run.events_received && <Chip tone="ser">Сообщений {run.events_received}</Chip>}
       </div>
       <dl className="dl">
         <dt>П3 в срок</dt>
@@ -46,7 +46,7 @@ function RunNode({ data }: NodeProps<Node<RunNodeData>>) {
         <dt>Просрочено</dt><dd>{num(run.summary.jobs_due_missed)}</dd>
       </dl>
       <div className="run-node-acts">
-        <button className="btn slim" onClick={onOpen}>открыть</button>
+        <button className="btn slim" onClick={onOpen}>Открыть</button>
         <button className="pill" aria-pressed={side === 'left'} onClick={() => onPick('left')}>A</button>
         <button className="pill" aria-pressed={side === 'right'} onClick={() => onPick('right')}>Б</button>
       </div>
@@ -136,7 +136,7 @@ export function BranchesPanel({ run }: { run: RunInfo }) {
               </button>
               <button className="btn" onClick={() => fork.mutate(undefined, {
                 onSuccess: (branch) => openRun((branch as RunInfo).run_id),
-              })}>ветвь отсюда</button>
+              })}>Ветвь отсюда</button>
             </div>}>
         {runs.isPending ? <Loading what="Смены" /> : (
           <div className="tree-flow">
@@ -203,8 +203,8 @@ export function BranchesPanel({ run }: { run: RunInfo }) {
                         {row.better === 'нейтрально' ? '—' : signed(row.delta, 2)}
                       </td>
                       <td>
-                        {row.better === 'нейтрально' ? <Chip>не сравнивается</Chip>
-                          : row.leader === null ? <Chip>поровну</Chip>
+                        {row.better === 'нейтрально' ? <Chip>Не сравнивается</Chip>
+                          : row.leader === null ? <Chip>Поровну</Chip>
                           : <Chip tone="good">{row.leader === report.data!.left.run_id ? 'A' : 'Б'}</Chip>}
                       </td>
                     </tr>

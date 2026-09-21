@@ -1,11 +1,20 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { useContacts, useFeasibility, useGrid, useSlotPrices } from '../api/client'
 import type { RunInfo } from '../api/types'
 import { deriveLoad, priceIndex, summaryAt } from '../derive'
 import { useConsole } from '../store'
-import { Card, Chip, Failure, Legend, Loading, Note, Tile, dec, num, pct, share, usd } from '../ui'
+import {
+  Card, Failure, Legend, Loading, Note, Tile, Chip,
+  dec, jobsWord, num, pct, plural, share, steps as stepsWord, usd,
+} from '../ui'
+import { AttentionPanel } from './AttentionPanel'
 import { Bars, ContactBand, OccupancyChart, type BandCell } from './charts'
 import { EventsCard } from './EventsCard'
+
+// Six equal tiles asked the operator to decide which of them mattered. Three do:
+// the obligations the shift promised, the work it got through, and the money.
+// Everything else that used to be a tile is still here — in one flat strip,
+// where a number is a check rather than a headline.
 
 export function ShiftPanel({ run }: { run: RunInfo }) {
   const cursor = useConsole((s) => s.cursor)
@@ -57,93 +66,122 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
     return done
   }, [derived.load, cursor])
 
+  // The cursor may stand one step past the last executed one, at the very end
+  // of the shift; the readout then describes the last step that happened.
+  const now = derived.load[Math.min(cursor, derived.load.length - 1)]
+  // The certificate footnotes describe a whole shift. Scrubbed back into the
+  // middle of one, the tiles are cumulative to the cursor and must say so.
+  const whole = run.finished && cursor >= run.total_steps
+  const impossible = certificates?.impossible_job_count ?? 0
+  const unfinished = run.summary.jobs_total - run.summary.jobs_completed
+  const wasted = run.summary.work_steps_in_missed_jobs
+
   return (
     <>
       <Failure error={grid.error ?? contacts.error ?? feas.error} what="Данные смены не загрузились" />
 
-      <div className="tiles">
-        <Tile label="Выполнено заданий" value={num(sums.jobs_completed)}
-              foot={<>из {num(sums.jobs_total)} в смене</>} />
-        <Tile label="Приоритет 3 в срок" value={num(sums.critical_jobs_completed_on_time)}
-              unit={`/ ${num(sums.critical_jobs_due)}`}
-              foot={<><b>{pct(share(sums.critical_jobs_completed_on_time, sums.critical_jobs_due))}</b> обязательств</>}
-              tone={sums.critical_jobs_completed_on_time === sums.critical_jobs_due ? 'up' : undefined} />
-        <Tile label="Выручка" value={usd(sums.revenue_usd)}
-              foot={<>цель управления: {run.goal === 'priority' ? 'приоритет' : 'выручка'}</>} />
-        <Tile label="Просрочено" value={num(sums.jobs_due_missed)}
-              foot={<>из {num(sums.jobs_due)} с истёкшим сроком</>}
-              tone={sums.jobs_due_missed > 0 ? 'down' : 'up'} />
-        <Tile label="Отклонённые команды" value={num(run.summary.blocked_command_count)}
-              foot={run.summary.blocked_command_count === 0
-                ? 'ни одна команда не отклонена' : 'см. журнал аппаратов'}
-              tone={run.summary.blocked_command_count === 0 ? 'up' : 'down'} />
-        <Tile label="Минимальный заряд" value={pct(run.summary.minimum_soc_pct)}
-              foot={<>ниже резерва: {num(run.summary.below_reserve_satellite_steps)} аппарато-шагов</>}
-              tone={run.summary.below_reserve_satellite_steps === 0 ? 'up' : undefined} />
+      <div className="verdict-bar"
+           style={{ ['--tone' as string]: run.finished ? 'var(--good)' : 'var(--accent)' }}>
+        <div>
+          <b>{run.finished ? 'Смена рассчитана целиком' : `Смена на шаге ${cursor}`}</b>
+          <p>
+            {!run.finished ? (
+              <>Плитки показывают официальные показатели на шаге курсора и складываются из
+                тех же приращений, что и сводка выданной библиотеки.</>
+            ) : unfinished === impossible && impossible > 0 ? (
+              <>Выполнено {num(run.summary.jobs_completed)} из {num(run.summary.jobs_total)} — ровно
+                столько, сколько допускает сценарий: остальные {num(impossible)} {jobsWord(impossible)} имеют
+                сертификат невыполнимости. Работа впустую — {wasted === 0 ? 'ноль' : stepsWord(wasted)}.</>
+            ) : (
+              <>Выполнено {num(run.summary.jobs_completed)} из {num(run.summary.jobs_total)}.
+                Из невыполненных {num(impossible)} имеют сертификат невыполнимости, остальные{' '}
+                {num(Math.max(unfinished - impossible, 0))} — потери, которые разбираются
+                на экране «Задания». Работа впустую — {wasted === 0 ? 'ноль' : stepsWord(wasted)}.</>
+            )}
+          </p>
+        </div>
+        <button className="btn" onClick={() => setTab('jobs')}>Разбор потерь</button>
       </div>
 
-      <p className="tbl-note">
-        Плитки показывают официальные показатели на шаге курсора — <b>{cursor}</b>. Они сложены из
-        тех же приращений, которыми их считает выданная библиотека, поэтому совпадают с её сводкой
-        шаг в шаг. Счётчики ниже — за всю исполненную историю.
-      </p>
+      <div className="metrics">
+        <Metric
+          label="Обязательства П3 в срок"
+          value={num(sums.critical_jobs_completed_on_time)}
+          of={num(sums.critical_jobs_due)}
+          fill="var(--good)"
+          share={share(sums.critical_jobs_completed_on_time, sums.critical_jobs_due)}
+          foot={whole && certificates
+            ? <>{num(certificates.impossible_critical_count)} недостижимы по сертификату</>
+            : <>{pct(share(sums.critical_jobs_completed_on_time, sums.critical_jobs_due))} обязательств к курсору</>}
+        />
+        <Metric
+          label="Выполнено заданий"
+          value={num(sums.jobs_completed)}
+          of={num(sums.jobs_total)}
+          fill="var(--s1)"
+          share={share(sums.jobs_completed, sums.jobs_total)}
+          foot={whole && impossible > 0
+            ? <>Ровно {num(run.summary.jobs_total)} − {num(impossible)} невыполнимых</>
+            : <>Нарастающим итогом к курсору</>}
+        />
+        <Metric
+          label="Выручка"
+          value={usd(sums.revenue_usd)}
+          fill="var(--s3)"
+          share={share(sums.revenue_usd, run.summary.revenue_usd)}
+          barTitle="Доля выручки, набранной к курсору, от набранной за исполненную историю"
+          foot={<>цель управления: {run.goal === 'priority' ? 'приоритет' : 'выручка'}</>}
+        />
+      </div>
 
-      <div className="two">
-        <Card title="Чем занята группировка"
-              note="Столбец — один шаг: сколько аппаратов передаёт на Землю, ретранслирует, калибруется. Правее курсора — ещё не исполнено."
-              right={<Legend items={[
-                { color: 'var(--s1)', label: 'связь' },
-                { color: 'var(--s3)', label: 'ретрансляция' },
-                { color: 'var(--s2)', label: 'калибровка' },
-                { color: 'var(--crit)', label: 'отклонено' },
-              ]} />}>
-          {grid.isPending ? <Loading what="Сетка смены" /> : (
-            <>
-              <OccupancyChart load={derived.load} cursor={cursor} satellites={derived.satellites} />
-              <div className="readout">
-                <span>на шаге курсора в работе <b>{num((derived.load[cursor]?.downlink ?? 0) + (derived.load[cursor]?.relay ?? 0))}</b> из {derived.satellites}</span>
-                <span>связь <b>{num(derived.load[cursor]?.downlink ?? 0)}</b> из {limit}</span>
-                <span>калибровка <b>{num(derived.load[cursor]?.calibrate ?? 0)}</b></span>
-              </div>
-            </>
-          )}
-        </Card>
+      <div className="secondary">
+        <Second k="Просрочено" v={num(sums.jobs_due_missed)}
+                tone={sums.jobs_due_missed > 0 ? 'var(--serious)' : 'var(--good)'} />
+        <Second k="Работа впустую" v={stepsWord(wasted)}
+                tone={wasted > 0 ? 'var(--warn)' : 'var(--good)'} />
+        <Second k="Отклонённые команды" v={num(run.summary.blocked_command_count)}
+                tone={run.summary.blocked_command_count > 0 ? 'var(--crit)' : 'var(--good)'} />
+        <Second k="Минимальный заряд" v={pct(run.summary.minimum_soc_pct)} />
+        <Second k="Ниже резерва" v={stepsWord(run.summary.below_reserve_satellite_steps)}
+                tone={run.summary.below_reserve_satellite_steps > 0 ? 'var(--crit)' : 'var(--good)'} />
+      </div>
+
+      <div className="overview-two">
+        <AttentionPanel run={run} />
 
         <Card title="Потолок выполнимости"
-              note="Верхняя граница по связи, посчитанная при открытии смены: сколько работы вообще можно уложить в окна контактов при лимите двух передач на шаг. Показывается рядом с честными метриками, а не вместо них.">
+              note="Верхняя граница по связи на момент открытия смены: сколько работы вообще укладывается в окна контактов при лимите двух передач на шаг.">
           {feas.isPending || !ceiling ? <Loading what="Сертификаты" /> : (
             <>
-              <Bars rows={[
-                { label: 'запрошено работы', value: ceiling.work_steps_demanded,
+              <Bars height={9} rows={[
+                { label: 'Запрошено работы', value: ceiling.work_steps_demanded,
                   max: Math.max(ceiling.work_steps_demanded, 1), fill: 'var(--ink-3)',
-                  note: num(ceiling.work_steps_demanded) + ' шагов' },
-                { label: 'укладывается в окна', value: ceiling.work_steps_schedulable,
+                  note: stepsWord(ceiling.work_steps_demanded) },
+                { label: 'Укладывается в окна', value: ceiling.work_steps_schedulable,
                   max: Math.max(ceiling.work_steps_demanded, 1), fill: 'var(--s1)',
-                  note: num(ceiling.work_steps_schedulable) + ' шагов' },
-                { label: 'передано на курсоре', value: downlinkDone,
+                  note: stepsWord(ceiling.work_steps_schedulable) },
+                { label: 'Передано на курсоре', value: downlinkDone,
                   max: Math.max(ceiling.work_steps_demanded, 1), fill: 'var(--good)',
-                  note: num(downlinkDone) + ' шагов' },
+                  note: stepsWord(downlinkDone) },
               ]} />
+              <Note>
+                <span>
+                  Недостижимо по окнам: <b>{num(ceiling.jobs_unreachable_by_window)}</b>{' '}
+                  {jobsWord(ceiling.jobs_unreachable_by_window)}
+                  {certificates && <>, из них приоритета 3 — <b>{num(certificates.impossible_critical_count)}</b>,
+                    на <b>{usd(certificates.impossible_value_usd)}</b></>}.
+                  У каждого есть сертификат против данных; из знаменателя метрик они не вычитаются.
+                </span>
+              </Note>
               <p className="tbl-note">
-                Это <b>{pct(share(downlinkDone, ceiling.work_steps_schedulable))}</b> от потолка
+                Передано <b>{pct(share(downlinkDone, ceiling.work_steps_schedulable))}</b> от потолка
                 и <b>{pct(share(downlinkDone, ceiling.work_steps_demanded))}</b> от запрошенного.
                 Разница между двумя числами — не качество планировщика, а свойство сценария.
                 {ahead && ahead.work_steps_demanded > 0 && <> Впереди курсора ещё достижимо{' '}
-                  <b>{num(ahead.work_steps_schedulable)}</b> шагов работы из{' '}
+                  <b>{num(ahead.work_steps_schedulable)}</b>{' '}
+                  {plural(ahead.work_steps_schedulable, 'шаг', 'шага', 'шагов')} работы из{' '}
                   <b>{num(ahead.work_steps_demanded)}</b> запрошенных.</>}
               </p>
-              <Note>
-                <span>
-                  Недостижимо по окнам: <b>{num(ceiling.jobs_unreachable_by_window)}</b> заданий
-                  {certificates && <> на <b>{usd(certificates.impossible_value_usd)}</b>, из них
-                    приоритета 3 — <b>{num(certificates.impossible_critical_count)}</b></>}.
-                  Это свойство сценария, а не качество планировщика: у каждого такого задания есть
-                  сертификат, который выдан против данных и проверяется без нашего кода.
-                </span>
-              </Note>
-              <button className="btn" onClick={() => setTab('jobs')}>
-                открыть разбор заданий
-              </button>
             </>
           )}
         </Card>
@@ -152,10 +190,10 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
       <Card title="Наземная связь: где узкое место"
             note="Верхняя полоса — окна контакта и их использование при лимите двух передач на шаг. Нижняя — цена слота: лучшее задание, которое на этот контакт претендовало и осталось невыполненным."
             right={<Legend items={[
-              { color: 'var(--s1)', label: 'контакт использован' },
-              { color: 'var(--idle)', label: 'контакт свободен' },
-              { color: 'var(--serious)', label: 'претендент недостижим по окну' },
-              { color: 'var(--crit)', label: 'претендент снят отбором' },
+              { color: 'var(--s1)', label: 'Контакт использован' },
+              { color: 'var(--idle)', label: 'Свободен' },
+              { color: 'var(--serious)', label: 'Претендент недостижим' },
+              { color: 'var(--crit)', label: 'Претендент снят отбором' },
             ]} />}>
         {prices.isPending ? <Loading what="Цена слотов" /> : (
           <>
@@ -163,12 +201,12 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
                          onPick={(step) => useConsole.getState().setCursor(step)} />
             {prices.data?.prices ? (
               <div className="readout">
-                <span>контактов за смену <b>{num(prices.data.prices.totals.contact_slots)}</b></span>
-                <span>занято <b>{num(prices.data.prices.totals.slots_assigned)}</b></span>
-                <span>свободно <b>{num(prices.data.prices.totals.slots_unused)}</b></span>
-                <span>с ненулевой ценой <b>{num(prices.data.prices.totals.slots_priced)}</b></span>
-                <span>дороже всего <b>{usd(prices.data.prices.totals.price_max_usd)}</b></span>
-                <span>в среднем <b>{usd(prices.data.prices.totals.price_mean_usd)}</b></span>
+                <span>Контактов за смену <b>{num(prices.data.prices.totals.contact_slots)}</b></span>
+                <span>Занято <b>{num(prices.data.prices.totals.slots_assigned)}</b></span>
+                <span>Свободно <b>{num(prices.data.prices.totals.slots_unused)}</b></span>
+                <span>С ненулевой ценой <b>{num(prices.data.prices.totals.slots_priced)}</b></span>
+                <span>Дороже всего <b>{usd(prices.data.prices.totals.price_max_usd)}</b></span>
+                <span>В среднем <b>{usd(prices.data.prices.totals.price_mean_usd)}</b></span>
               </div>
             ) : (
               <Note><span>
@@ -188,6 +226,26 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
         )}
       </Card>
 
+      <Card title="Чем занята группировка"
+            note="Столбец — один шаг: сколько аппаратов передаёт на Землю, ретранслирует, калибруется. Правее курсора — ещё не исполнено."
+            right={<Legend items={[
+              { color: 'var(--s1)', label: 'Связь' },
+              { color: 'var(--s3)', label: 'Ретрансляция' },
+              { color: 'var(--s2)', label: 'Калибровка' },
+              { color: 'var(--crit)', label: 'Отклонено' },
+            ]} />}>
+        {grid.isPending ? <Loading what="Сетка смены" /> : (
+          <>
+            <OccupancyChart load={derived.load} cursor={cursor} satellites={derived.satellites} />
+            <div className="readout">
+              <span>На шаге курсора в работе <b>{num((now?.downlink ?? 0) + (now?.relay ?? 0))}</b> из {derived.satellites}</span>
+              <span>Связь <b>{num(now?.downlink ?? 0)}</b> из {limit}</span>
+              <span>Калибровка <b>{num(now?.calibrate ?? 0)}</b></span>
+            </div>
+          </>
+        )}
+      </Card>
+
       <EventsCard run={run} />
 
       <Card title="Что доказано невыполнимым"
@@ -196,14 +254,14 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
           <div className="cert-grid">
             <div className="tiles">
               <Tile label="Заданий с сертификатом" value={num(opening.totals.impossible_job_count)}
-                    foot="окно короче, чем объём работы" />
+                    foot="Окно короче, чем объём работы" />
               <Tile label="Из них приоритета 3" value={num(opening.totals.impossible_critical_count)}
-                    foot="обязательства, недостижимые в принципе" />
+                    foot="Обязательства, недостижимые в принципе" />
               <Tile label="Цена невыполнимого" value={usd(opening.totals.impossible_value_usd)}
-                    foot="не вычитается из знаменателя метрик" />
+                    foot="Не вычитается из знаменателя метрик" />
               <Tile label="Аппаратов с дефицитом группы"
                     value={num(opening.totals.satellites_with_group_shortfall)}
-                    foot={<>условие Холла · не хватает {num(opening.totals.group_shortfall_work_steps)} шагов</>} />
+                    foot={<>Условие Холла · не хватает {stepsWord(opening.totals.group_shortfall_work_steps)}</>} />
             </div>
             {!!opening.oversubscribed_satellites.length && (
               <div className="scroll">
@@ -229,8 +287,9 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
               </div>
             )}
             <p className="tbl-note">
-              Потолок смены по связи — <b>{num(ceiling?.work_steps_schedulable)}</b> шагов
-              работы из запрошенных <b>{num(ceiling?.work_steps_demanded)}</b>
+              Потолок смены по связи — <b>{num(ceiling?.work_steps_schedulable)}</b>{' '}
+              {plural(ceiling?.work_steps_schedulable ?? 0, 'шаг', 'шага', 'шагов')} работы
+              из запрошенных <b>{num(ceiling?.work_steps_demanded)}</b>
               {ceiling && ceiling.work_steps_demanded > 0 && <> ({dec(share(ceiling.work_steps_schedulable, ceiling.work_steps_demanded))}%)</>}.
               Невыполнимые задания остаются в знаменателе официальных метрик: вычёркивать их
               описание данных прямо запрещает.
@@ -239,5 +298,34 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
         )}
       </Card>
     </>
+  )
+}
+
+/** One of the three headline figures: a number, its denominator, one bar, one line. */
+function Metric({ label, value, of, fill, share: filled, foot, barTitle }: {
+  label: ReactNode; value: ReactNode; of?: ReactNode; fill: string
+  share: number; foot: ReactNode; barTitle?: string
+}) {
+  return (
+    <div className="metric">
+      <span className="k">{label}</span>
+      <span className="v">
+        <b>{value}</b>
+        {of !== undefined && <span>/ {of}</span>}
+      </span>
+      <div className="metric-bar" title={barTitle}>
+        <i style={{ width: `${Math.max(0, Math.min(100, filled))}%`, background: fill }} />
+      </div>
+      <span className="d">{foot}</span>
+    </div>
+  )
+}
+
+function Second({ k, v, tone }: { k: string; v: ReactNode; tone?: string }) {
+  return (
+    <div>
+      <span>{k}</span>
+      <b style={tone ? { color: tone } : undefined}>{v}</b>
+    </div>
   )
 }

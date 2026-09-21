@@ -10,67 +10,69 @@ import type { ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import type { Verdict } from './api/types'
 
+export type Tone = 'good' | 'warn' | 'crit' | 'ser' | 's1' | 'cert' | ''
+
 export const REASONS: Record<string, string> = {
-  accepted: 'выполнено',
-  idle: 'простой',
-  no_admissible_work: 'нет допустимой работы',
-  satellite_unavailable: 'аппарат недоступен',
-  unknown_job: 'неизвестное задание',
-  already_completed: 'задание уже выполнено',
-  outside_job_window: 'вне окна выполнения',
-  ineligible_satellite: 'аппарат не допущен к заданию',
-  no_contact: 'нет связи на этом шаге',
-  calibration_required: 'требуется калибровка',
-  energy_reserve: 'упёрлись в резерв заряда',
-  thermal_limit: 'температурный предел',
-  unknown_action: 'неизвестная команда',
-  duplicate_job_in_step: 'задание уже взято другим аппаратом',
-  ground_capacity: 'занят лимит передач на шаг',
-  taken_by_another_satellite: 'задание уже взято другим аппаратом',
+  accepted: 'Выполнено',
+  idle: 'Простой',
+  no_admissible_work: 'Нет допустимой работы',
+  satellite_unavailable: 'Аппарат недоступен',
+  unknown_job: 'Неизвестное задание',
+  already_completed: 'Задание уже выполнено',
+  outside_job_window: 'Вне окна выполнения',
+  ineligible_satellite: 'Аппарат не допущен к заданию',
+  no_contact: 'Нет связи на этом шаге',
+  calibration_required: 'Требуется калибровка',
+  energy_reserve: 'Упёрлись в резерв заряда',
+  thermal_limit: 'Температурный предел',
+  unknown_action: 'Неизвестная команда',
+  duplicate_job_in_step: 'Задание уже взято другим аппаратом',
+  ground_capacity: 'Занят лимит передач на шаг',
+  taken_by_another_satellite: 'Задание уже взято другим аппаратом',
 }
 
 export const reason = (code: string | null | undefined) =>
   code ? (REASONS[code] ?? code) : '—'
 
 export const ACTIONS: Record<string, string> = {
-  job: 'работа по заданию',
-  calibrate: 'калибровка',
-  idle: 'простой',
+  job: 'Работа по заданию',
+  calibrate: 'Калибровка',
+  idle: 'Простой',
 }
 
 export const action = (code: string | null | undefined) =>
   code ? (ACTIONS[code] ?? code) : '—'
 
-export const VERDICTS: Record<Verdict, { label: string; tone: 'crit' | 'warn' | 'good' | 'ser' | '' }> = {
-  completed: { label: 'выполнено', tone: 'good' },
-  impossible_by_data: { label: 'невозможно по данным', tone: 'ser' },
-  group_shortfall: { label: 'группе не хватает контактов', tone: 'ser' },
-  refused_by_satellite: { label: 'не пустил аппарат', tone: 'crit' },
-  outcompeted: { label: 'проиграло конкуренцию', tone: 'warn' },
-  resource_starved: { label: 'аппаратам не хватило ресурса', tone: 'crit' },
-  missed_without_attempt: { label: 'срок вышел, попыток не было', tone: 'crit' },
-  in_progress: { label: 'в работе', tone: '' },
-  open: { label: 'ждёт своего окна', tone: '' },
+export const VERDICTS: Record<Verdict, { label: string; tone: Tone }> = {
+  completed: { label: 'Выполнено', tone: 'good' },
+  impossible_by_data: { label: 'Невозможно по данным', tone: 'ser' },
+  group_shortfall: { label: 'Группе не хватает контактов', tone: 'ser' },
+  refused_by_satellite: { label: 'Не пустил аппарат', tone: 'crit' },
+  outcompeted: { label: 'Проиграло контакт', tone: 'warn' },
+  resource_starved: { label: 'Аппаратам не хватило ресурса', tone: 'crit' },
+  missed_without_attempt: { label: 'Срок вышел, попыток не было', tone: 'crit' },
+  in_progress: { label: 'В работе', tone: 's1' },
+  open: { label: 'Ждёт своего окна', tone: '' },
 }
 
 /** Why an eligible satellite in relay contact stayed idle on a step. */
 export const IDLE_REASONS: Record<string, string> = {
-  unavailable: 'аппарат недоступен',
-  too_late: 'к сроку уже не успеть',
-  below_reserve: 'заряд ниже резерва',
-  calibration_expired: 'калибровка истекла',
-  other: 'иные причины',
+  unavailable: 'Аппарат недоступен',
+  too_late: 'К сроку уже не успеть',
+  below_reserve: 'Заряд ниже резерва',
+  calibration_expired: 'Калибровка истекла',
+  other: 'Иные причины',
 }
 
 export const CERTIFICATES: Record<string, string> = {
-  contact_window_shorter_than_work: 'в окне меньше контактов, чем нужно работы',
-  satellite_contacts_oversubscribed: 'группа заданий перекрывает все контакты интервала',
+  contact_window_shorter_than_work: 'В окне меньше контактов, чем нужно работы',
+  satellite_contacts_oversubscribed: 'Группа заданий перекрывает все контакты интервала',
 }
 
 export const EVENT_KINDS: Record<string, string> = {
-  add_jobs: 'новые задания',
-  satellite_outage: 'недоступность аппаратов',
-  close_downlink: 'отмена сеансов связи',
+  add_jobs: 'Новые задания',
+  satellite_outage: 'Недоступность аппаратов',
+  close_downlink: 'Отмена сеансов связи',
 }
 
 // --- numbers ---------------------------------------------------------------
@@ -85,8 +87,20 @@ export const dec = (value: number | null | undefined) =>
 export const usd = (value: number | null | undefined) =>
   value === null || value === undefined ? '—' : '$' + nf.format(Math.round(value))
 export const pct = (value: number | null | undefined) =>
-  value === null || value === undefined ? '—' : nf1.format(value) + '%'
+  value === null || value === undefined ? '—' : nf1.format(value) + '\u00a0%'
 export const share = (part: number, whole: number) => (whole > 0 ? (100 * part) / whole : 0)
+
+/** A count agrees with its noun: 1 шаг, 2 шага, 5 шагов. Numbers in this
+ *  interface are almost always next to a noun, so one helper beats forty. */
+export function plural(count: number, one: string, few: string, many: string) {
+  const rest = Math.abs(Math.round(count)) % 100
+  if (rest > 10 && rest < 20) return many
+  const last = rest % 10
+  return last === 1 ? one : last >= 2 && last <= 4 ? few : many
+}
+
+export const steps = (count: number) => `${num(count)} ${plural(count, 'шаг', 'шага', 'шагов')}`
+export const jobsWord = (count: number) => plural(count, 'задание', 'задания', 'заданий')
 
 /** A step index as time of shift: steps are five minutes, the shift is a day.
  *  The last step reads 24:00 rather than 00:00 — the end of the shift, not its
@@ -138,7 +152,7 @@ export function Tile({ label, value, unit, foot, tone }: {
 }
 
 export function Chip({ tone, children, title }: {
-  tone?: 'good' | 'warn' | 'crit' | 'ser' | 'cert'; children: ReactNode; title?: string
+  tone?: Tone; children: ReactNode; title?: string
 }) {
   return <span className={'chip' + (tone ? ' ' + tone : '')} title={title}>{children}</span>
 }
@@ -150,7 +164,7 @@ export function Meter({ value, mark, tone }: { value: number; mark?: number; ton
         <i style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: tone }} />
         {mark !== undefined && <u style={{ left: `${mark}%` }} />}
       </div>
-      <b>{Math.round(value)}%</b>
+      <b style={tone ? { color: tone } : undefined}>{Math.round(value)}%</b>
     </div>
   )
 }

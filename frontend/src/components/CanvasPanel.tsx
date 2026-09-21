@@ -4,7 +4,7 @@ import { api, runKey, useContacts, useDownlinkPlan, useGrid, useSlotPrices } fro
 import type { RunInfo } from '../api/types'
 import { priceIndex } from '../derive'
 import { useConsole } from '../store'
-import { Card, Chip, Failure, Legend, Loading, Note, action, num, usd } from '../ui'
+import { Card, Chip, Failure, Legend, Loading, Note, action, num, steps as stepsWord, usd } from '../ui'
 import { JobExplain } from './JobExplain'
 
 // The fog of war.
@@ -22,6 +22,9 @@ import { JobExplain } from './JobExplain'
 const ROW_H = 12
 const MIN_CELL = 3
 const LABELS = 44
+
+/** How pale the intent layer is drawn. It is a plan, not a fact. */
+const INTENT_ALPHA = 0.3
 
 interface Palette {
   plane: string; inset: string; idle: string; line: string
@@ -56,8 +59,8 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
 
   const total = grid.data?.total_steps ?? run.total_steps
   const sats = grid.data?.satellites ?? []
-  const cell = Math.max(MIN_CELL, Math.floor((width - LABELS) / total))
-  const plotW = cell * total
+  const cell = Math.max(MIN_CELL, (width - LABELS) / total)
+  const plotW = Math.round(cell * total)
   const plotH = ROW_H * sats.length
   const index = useMemo(() => priceIndex(prices.data?.prices), [prices.data])
 
@@ -85,10 +88,15 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
     const fc = fact.getContext('2d')!
     const ic = intent.getContext('2d')!
 
-    fc.fillStyle = colors.inset
+    fc.fillStyle = colors.plane
     fc.fillRect(0, 0, plotW, plotH)
-    ic.fillStyle = colors.inset
+    ic.fillStyle = colors.plane
     ic.fillRect(0, 0, plotW, plotH)
+
+    // A column's edges are whole pixels; its width is whatever is left between
+    // them, so 288 columns tile the canvas exactly and none of them blur.
+    const left = (step: number) => Math.round(step * cell)
+    const span = (from: number, to: number) => Math.max(left(to) - left(from), 1)
 
     // Layer one: the log.
     sats.forEach((sid, row) => {
@@ -101,7 +109,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
           : code === 46 ? colors.idle : null
         if (!fill) continue
         fc.fillStyle = fill
-        fc.fillRect(step * cell, y + 1, Math.max(cell - 0.5, 1), ROW_H - 2)
+        fc.fillRect(left(step), y + 1, span(step, step + 1), ROW_H - 2)
       }
     })
 
@@ -114,7 +122,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
       if (row === undefined) continue
       for (const [from, to] of item.downlink) {
         for (let step = from; step < Math.min(to, total); step++) {
-          ic.fillRect(step * cell, row * ROW_H + ROW_H / 2 - 1, Math.max(cell - 0.5, 1), 2)
+          ic.fillRect(left(step), row * ROW_H + ROW_H / 2 - 1, span(step, step + 1), 2)
         }
       }
     }
@@ -125,7 +133,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
       for (const sid of Object.keys(byS)) {
         const row = rowOf.get(sid)
         if (row === undefined) continue
-        ic.fillRect(k * cell, row * ROW_H + 1, Math.max(cell - 0.5, 1), ROW_H - 2)
+        ic.fillRect(left(k), row * ROW_H + 1, span(k, k + 1), ROW_H - 2)
       }
     }
     // Announced unavailability applies to both sides of the cursor.
@@ -134,8 +142,8 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
       if (row === undefined) continue
       for (const context of [fc, ic]) {
         context.fillStyle = colors.off
-        context.fillRect(outage.start_step * cell, row * ROW_H + 1,
-                         Math.max((outage.end_step - outage.start_step) * cell, 1), ROW_H - 2)
+        context.fillRect(left(outage.start_step), row * ROW_H + 1,
+                         span(outage.start_step, outage.end_step), ROW_H - 2)
       }
     }
     layers.current = { fact, intent }
@@ -156,13 +164,13 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
     const context = canvas.getContext('2d')!
     context.setTransform(ratio, 0, 0, ratio, 0, 0)
     context.clearRect(0, 0, plotW, plotH)
-    const split = Math.min(cursor, total) * cell
+    const split = Math.round(Math.min(cursor, total) * cell)
 
     context.save()
     context.beginPath()
     context.rect(split, 0, plotW - split, plotH)
     context.clip()
-    context.globalAlpha = 0.4
+    context.globalAlpha = INTENT_ALPHA
     context.drawImage(pair.intent, 0, 0)
     context.restore()
 
@@ -204,9 +212,9 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
 
   const factOf = (sid: string, step: number) => {
     const code = grid.data?.actions[sid]?.[step]
-    return code === 'd' ? 'передача на Землю' : code === 'r' ? 'ретрансляция'
-      : code === 'c' ? 'калибровка' : code === 'x' ? 'команда отклонена'
-      : code === '.' ? 'простой' : 'ещё не исполнено'
+    return code === 'd' ? 'Передача на Землю' : code === 'r' ? 'Ретрансляция'
+      : code === 'c' ? 'Калибровка' : code === 'x' ? 'Команда отклонена'
+      : code === '.' ? 'Простой' : 'Ещё не исполнено'
   }
 
   return (
@@ -216,12 +224,12 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
         title={<>Полотно смены · {sats.length} × {total}</>}
         note="Слева от курсора — факт: что исполнилось. Справа — намерение планировщика при текущем знании, бледным. Курсор двигается по исполненной истории, и левая часть не меняется ни на пиксель."
         right={<Legend items={[
-          { color: 'var(--s1)', label: 'связь' },
-          { color: 'var(--s3)', label: 'ретрансляция' },
-          { color: 'var(--s2)', label: 'калибровка' },
-          { color: 'var(--crit)', label: 'отклонено' },
-          { color: 'var(--idle)', label: 'простой / контакт' },
-          { color: 'var(--off)', label: 'недоступен' },
+          { color: 'var(--s1)', label: 'Связь' },
+          { color: 'var(--s3)', label: 'Ретрансляция' },
+          { color: 'var(--s2)', label: 'Калибровка' },
+          { color: 'var(--crit)', label: 'Отклонено' },
+          { color: 'var(--idle)', label: 'Простой / контакт' },
+          { color: 'var(--off)', label: 'Недоступен' },
         ]} />}
       >
         {grid.isPending ? <Loading what="Сетка смены" /> : (
@@ -252,13 +260,13 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
               <div className="tip" style={{ display: 'block', left: hover.x + 14, top: hover.y + 12 }}>
                 <b>{hover.sid} · шаг {hover.step}</b>
                 <ul>
-                  <li><span>{hover.step < cursor ? 'факт' : 'намерение'}</span>
+                  <li><span>{hover.step < cursor ? 'Факт' : 'Намерение'}</span>
                       <em>{hover.step < cursor ? factOf(hover.sid, hover.step)
                         : (plan.data?.plan?.assignments?.[String(hover.step)]?.[hover.sid] ?? '—')}</em></li>
-                  <li><span>заряд</span>
+                  <li><span>Заряд</span>
                       <em>{grid.data?.soc[hover.sid]?.[hover.step] ?? '—'}%</em></li>
                   {index.has(`${hover.step}:${hover.sid}`) && (
-                    <li><span>цена слота</span>
+                    <li><span>Цена слота</span>
                         <em>{usd(index.get(`${hover.step}:${hover.sid}`)!.price)}</em></li>
                   )}
                 </ul>
@@ -266,14 +274,18 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
             )}
           </div>
         )}
+        <div className="canvas-sides" style={{ paddingLeft: LABELS }} aria-hidden>
+          <span>← факт</span>
+          <span>намерение →</span>
+        </div>
         <div className="readout">
-          <span>курсор на шаге <b>{cursor}</b></span>
-          <span>исполнено до <b>{run.step}</b></span>
+          <span>Курсор на шаге <b>{cursor}</b></span>
+          <span>Исполнено до <b>{run.step}</b></span>
           {plan.data?.plan && <>
-            <span>в расписании связи <b>{num(plan.data.plan.selected_jobs.length)}</b> заданий</span>
-            <span>недостижимо <b>{num(plan.data.plan.unreachable.length)}</b></span>
-            <span>снято отбором <b>{num(plan.data.plan.displaced.length)}</b></span>
-            <span>расписание построено на шаге <b>{plan.data.plan.built_at_step}</b></span>
+            <span>В расписании связи <b>{num(plan.data.plan.selected_jobs.length)}</b> заданий</span>
+            <span>Недостижимо <b>{num(plan.data.plan.unreachable.length)}</b></span>
+            <span>Снято отбором <b>{num(plan.data.plan.displaced.length)}</b></span>
+            <span>Расписание построено на шаге <b>{plan.data.plan.built_at_step}</b></span>
           </>}
         </div>
         {!plan.data?.plan && (
@@ -300,7 +312,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
             <dt>Клеток</dt><dd>{num(sats.length * total)}</dd>
             <dt>Отклонённых команд</dt><dd>{num(run.summary.blocked_command_count)}</dd>
             <dt>Аппарато-шагов ниже резерва</dt><dd>{num(run.summary.below_reserve_satellite_steps)}</dd>
-            <dt>Работа впустую</dt><dd>{num(run.summary.work_steps_in_missed_jobs)} шагов</dd>
+            <dt>Работа впустую</dt><dd>{stepsWord(run.summary.work_steps_in_missed_jobs)}</dd>
           </dl>
           <p className="tbl-note">
             «Работа впустую» — шаги, потраченные на задания, которые так и не были завершены.
@@ -316,8 +328,8 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
             </span></Note>
           )}
           <p className="tbl-note">
-            Последнее действие аппарата и причина отказа доступны на экране «Аппараты»;
-            {' '}{action('job')} в журнале означает работу по заданию.
+            Последнее действие аппарата и причина отказа доступны на экране «Аппараты»:
+            строка <b>{action('job')}</b> в журнале означает работу по заданию.
           </p>
         </Card>
       </div>
