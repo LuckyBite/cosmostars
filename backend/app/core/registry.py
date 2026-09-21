@@ -26,7 +26,10 @@ class RunRegistry:
         with self._lock:
             self._runs[run.id] = run
             while len(self._runs) > self._max_runs:
-                # Oldest untouched run goes first; exports are unaffected.
+                # Least recently *used* goes first, not least recently created:
+                # the shift an operator is looking at may well be the oldest one
+                # in the process, and dropping it under them is the one eviction
+                # that must never happen. Exports are unaffected either way.
                 self._runs.popitem(last=False)
         return run
 
@@ -43,6 +46,8 @@ class RunRegistry:
     def get(self, run_id: str) -> Run:
         with self._lock:
             run = self._runs.get(run_id)
+            if run is not None:
+                self._runs.move_to_end(run_id)
         if run is None:
             raise NotFound(f'Run {run_id!r} is not in this session')
         return run
@@ -56,6 +61,15 @@ class RunRegistry:
         with self._lock:
             if self._runs.pop(run_id, None) is None:
                 raise NotFound(f'Run {run_id!r} is not in this session')
+
+    def capacity(self) -> dict[str, int]:
+        """How many shifts are held and how many fit, for the health check.
+
+        A full shift costs about 17 MB on the daily scenario and 26 MB on the
+        overloaded one, so the cap is what keeps a small free instance alive.
+        """
+        with self._lock:
+            return {'runs_held': len(self._runs), 'runs_capacity': self._max_runs}
 
     def pair(self, left_id: str, right_id: str) -> tuple[Run, Run]:
         if left_id == right_id:

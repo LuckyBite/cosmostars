@@ -25,5 +25,8 @@ FRONTEND_DIR = Path(os.environ.get('COSMOSTARS_FRONTEND_DIR', ROOT / 'frontend' 
 ALLOWED_ORIGINS = [origin for origin in
                    os.environ.get('COSMOSTARS_ALLOWED_ORIGINS', '*').split(',') if origin]
 
-MAX_RUNS = int(os.environ.get('COSMOSTARS_MAX_RUNS', '64'))
+# A full shift costs ~17 MB in memory on the daily scenario and ~26 MB on the
+# overloaded one, so the default is set for the smallest target we deploy to: a
+# 512 MB free instance. On a normal machine raise it.
+MAX_RUNS = int(os.environ.get('COSMOSTARS_MAX_RUNS', '12'))
 MAX_UPLOAD_BYTES = int(os.environ.get('COSMOSTARS_MAX_UPLOAD_BYTES', str(64 * 1024 * 1024)))

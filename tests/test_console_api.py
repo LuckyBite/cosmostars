@@ -167,3 +167,30 @@ def test_the_shift_ceiling_survives_the_end_of_the_shift(client: TestClient):
     assert opening['work_steps_demanded'] == 410
     assert opening['jobs_unreachable_by_window'] == 44
     assert report['at_open']['totals']['impossible_critical_count'] == 19
+
+
+def test_the_shift_you_are_looking_at_is_never_the_one_evicted(client: TestClient):
+    """The cap keeps a small instance alive; it must not drop the open shift.
+
+    Eviction is least-recently-used, not least-recently-created: the shift an
+    operator has had open all along is usually the oldest one in the process.
+    """
+    from backend.app.core.registry import RunRegistry
+
+    registry = RunRegistry(max_runs=3)
+    first = registry.create('P01_intro', 'cosmostars', 'priority')
+    others = [registry.create('P01_intro', 'cosmostars', 'priority') for _ in range(2)]
+    registry.get(first.id)                      # the operator looks at it again
+    newest = registry.create('P01_intro', 'cosmostars', 'priority')
+
+    assert registry.get(first.id) is first      # still here, because it was used
+    assert registry.get(newest.id) is newest
+    held = {item['run_id'] for item in registry.list()}
+    assert others[0].id not in held             # the genuinely idle one went
+    assert registry.capacity() == {'runs_held': 3, 'runs_capacity': 3}
+
+
+def test_health_says_how_many_shifts_are_held(client: TestClient):
+    body = client.get('/api/health').json()
+    assert body['status'] == 'ok'
+    assert body['runs_held'] <= body['runs_capacity']

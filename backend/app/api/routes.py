@@ -26,7 +26,7 @@ router = APIRouter(prefix='/api')
 
 @router.get('/health')
 def health() -> dict[str, Any]:
-    return {'status': 'ok'}
+    return {'status': 'ok', **registry.capacity()}
 
 
 @router.get('/planners')
