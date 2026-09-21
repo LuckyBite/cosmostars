@@ -29,7 +29,7 @@ class EDFPlanner(Planner):
         valid_for = view.model['calibration_valid_steps']
         for sid in view.satellite_ids:
             if not view.available(sid):
-                plan.idle(sid, 'satellite_unavailable')
+                plan.idle(sid)
                 continue
             if view.calibration_expired(sid) and plan.try_calibrate(sid):
                 continue

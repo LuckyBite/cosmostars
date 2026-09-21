@@ -43,6 +43,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+/** The pre-run changes the statement allows, all optional, at least one given. */
+export interface DeriveBody {
+  initial_soc_pct?: Record<string, number>
+  solar_multiplier?: number
+  job_priority?: Record<string, number>
+  outages?: { satellite_id: string; start_step: number; end_step: number }[]
+  title?: string
+}
+
 const post = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: 'POST', body: JSON.stringify(body ?? {}) })
 
@@ -51,6 +60,8 @@ export const api = {
   planners: () => request<{ goals: Goal[]; planners: { name: string; version: string }[] }>('/planners'),
   uploadScenario: (key: string, scenario: unknown) =>
     post<ScenarioBrief>('/scenarios', { key, scenario }),
+  deriveScenario: (key: string, body: DeriveBody) =>
+    post<ScenarioBrief>(`/scenarios/${key}/derive`, body),
   runs: () => request<{ items: RunInfo[] }>('/runs'),
   run: (id: string) => request<RunInfo>(`/runs/${id}`),
   createRun: (body: { scenario_key: string; goal: Goal; planner: string; title?: string }) =>
@@ -117,6 +128,9 @@ export const useScenarios = () =>
   useQuery({ queryKey: ['scenarios'], queryFn: api.scenarios, staleTime: Infinity })
 
 export const useRuns = () => useQuery({ queryKey: ['runs'], queryFn: api.runs })
+
+export const usePlanners = () =>
+  useQuery({ queryKey: ['planners'], queryFn: api.planners, staleTime: Infinity })
 
 export const useRun = (id: string | null) => runQuery(id, 'info', api.run)
 export const useEvents = (id: string | null) => runQuery(id, 'events', api.events)

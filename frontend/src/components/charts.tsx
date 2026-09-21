@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react'
 import type { StepLoad } from '../derive'
-import { clock, num, usd } from '../ui'
+import { num } from '../ui'
 
 const W = 288
 
@@ -174,5 +174,3 @@ export function Bars({ rows, height = 8 }: {
   )
 }
 
-export const stepLabel = (step: number) => `${step} · ${clock(step)}`
-export const priceLabel = (price: number) => (price > 0 ? usd(price) : '—')

@@ -57,3 +57,27 @@ class VerifyRequest(BaseModel):
 class UploadScenario(BaseModel):
     key: str = Field(min_length=1, max_length=64, pattern=r'^[A-Za-z0-9_\-]+$')
     scenario: dict[str, Any]
+
+
+class OutageSpec(BaseModel):
+    satellite_id: str
+    start_step: int = Field(ge=0)
+    end_step: int = Field(ge=1)
+
+
+class DeriveScenario(BaseModel):
+    """Changes the operator may make to a catalogued scenario before a run.
+
+    Exactly the four the statement names — the initial charge of a satellite,
+    the solar power coefficient, the priority of an existing job, a period of
+    unavailability — and nothing that would turn conditions into a knob for
+    tuning results: powers, prices and model rules stay as shipped.
+    """
+
+    initial_soc_pct: dict[str, float] = Field(default_factory=dict)
+    solar_multiplier: float | None = Field(default=None, gt=0)
+    job_priority: dict[str, int] = Field(default_factory=dict)
+    outages: list[OutageSpec] = Field(default_factory=list)
+    key: str | None = Field(default=None, min_length=1, max_length=64,
+                            pattern=r'^[A-Za-z0-9_\-]+$')
+    title: str | None = Field(default=None, max_length=120)

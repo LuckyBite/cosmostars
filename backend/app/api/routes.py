@@ -21,6 +21,7 @@ from .schemas import (
     AdvanceRequest,
     CloseDownlinkRequest,
     CreateRun,
+    DeriveScenario,
     EventRequest,
     ForkRequest,
     GoalRequest,
@@ -53,6 +54,20 @@ def list_scenarios() -> dict[str, Any]:
 @router.post('/scenarios')
 def upload_scenario(body: UploadScenario) -> dict[str, Any]:
     return scenarios.register_upload(body.key, body.scenario)
+
+
+@router.post('/scenarios/{key}/derive', status_code=201)
+def derive_scenario(key: str, body: DeriveScenario) -> dict[str, Any]:
+    """A catalogued scenario with the operator's pre-run changes, saved as a new one."""
+    return scenarios.derive(
+        key,
+        initial_soc_pct=body.initial_soc_pct,
+        solar_multiplier=body.solar_multiplier,
+        job_priority=body.job_priority,
+        outages=[outage.model_dump() for outage in body.outages],
+        key=body.key,
+        title=body.title,
+    )
 
 
 @router.get('/runs')

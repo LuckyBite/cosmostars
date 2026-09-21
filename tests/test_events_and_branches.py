@@ -104,3 +104,31 @@ def test_export_replays_to_the_same_numbers():
     replayed = replay_episode(exported['initial_scenario'], exported['events'],
                               exported['commands'], exported['steps_executed'])
     assert replayed.summary() == exported['summary']
+
+
+def test_parallel_requests_on_one_run_are_serialised():
+    """Two tabs, one shift: the second caller waits instead of corrupting the first.
+
+    Without the run lock this interleaves planning and execution, and the planner
+    reads a job index another thread is rewriting: an exception, plus commands the
+    model refuses — a dozen of them on P02, measured before the lock existed.
+    """
+    import threading
+
+    run = make_run()
+    errors: list[Exception] = []
+
+    def hour() -> None:
+        try:
+            run.advance(60)
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=hour) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert not errors
+    assert run.step == 180
+    assert run.summary()['blocked_command_count'] == 0

@@ -14,10 +14,8 @@ from __future__ import annotations
 from typing import Any
 
 from . import downlink
-from .base import CRITICAL_PRIORITY, Planner, StepPlan, job_score
+from .base import Planner, StepPlan, job_score
 from .view import Action, Job, StepView
-
-UNREACHABLE_RELAY = 'not_enough_steps_before_deadline'
 
 
 class SmartPlanner(Planner):
@@ -108,8 +106,6 @@ class SmartPlanner(Planner):
             candidates.append(job)
         candidates.sort(key=lambda j: self._relay_rank(view, j))
         for job in candidates:
-            if not plan.downlink_slots_left and job['kind'] == 'downlink':
-                continue
             self._assign_relay(view, plan, job)
 
     def _relay_rank(self, view: StepView, job: Job) -> tuple[int, float, int, str]:
@@ -138,12 +134,4 @@ class SmartPlanner(Planner):
         return data
 
 
-def critical_share(summary: dict[str, Any]) -> float | None:
-    """Share of priority-3 jobs met on time, or None when none are due yet."""
-    due = summary.get('critical_jobs_due', 0)
-    if not due:
-        return None
-    return summary.get('critical_jobs_completed_on_time', 0) / due
-
-
-__all__ = ['CRITICAL_PRIORITY', 'UNREACHABLE_RELAY', 'SmartPlanner', 'critical_share']
+__all__ = ['SmartPlanner']

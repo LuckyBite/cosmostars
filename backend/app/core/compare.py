@@ -88,7 +88,7 @@ def _verdict(goal: str, left: Run, right: Run,
 def compare(left: Run, right: Run, goal: str | None = None) -> dict[str, Any]:
     """Differences that matter for the chosen goal, with the caveats attached."""
     goal = goal or left.goal
-    left_summary, right_summary = left.session.summary(), right.session.summary()
+    left_summary, right_summary = left.summary(), right.summary()
     rows = []
     for key, better, label in METRICS:
         a, b = left_summary.get(key), right_summary.get(key)

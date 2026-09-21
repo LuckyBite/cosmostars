@@ -118,8 +118,11 @@ def test_explain_reads_a_refusal_out_of_the_log_not_out_of_opinion(client: TestC
         if report['refusals']['total']:
             reasons.add(report['refusals']['dominant_reason'])
             assert report['verdict'] in ('refused_by_satellite', 'impossible_by_data')
-        # No schedule exists for this planner, so no contest layer is invented.
-        assert report['competition'] is None
+        # No schedule exists for this planner, so nothing ahead of the cursor is
+        # invented; what the log shows behind it is reported as the log.
+        contest = report['competition']
+        if contest['kind'] == 'downlink':
+            assert contest['planned'] is False and contest['counterfactual'] is None
     assert reasons <= {'energy_reserve', 'thermal_limit', 'calibration_required',
                        'no_contact', 'ground_capacity', 'duplicate_job_in_step',
                        'satellite_unavailable', 'outside_job_window'}
@@ -301,3 +304,75 @@ def test_the_recomputation_survives_events_and_branching(client: TestClient):
     client.post(f'/api/runs/{branch}/advance', json={'to_step': 288})
     for target in (run_id, branch):
         assert client.get(f'/api/runs/{target}/audit').json()['verdict'] == 'consistent'
+
+
+def contest_scenario() -> dict:
+    """Two one-step downlink jobs of one satellite and a single contact between them."""
+    import copy
+
+    from backend.app.core import scenarios
+
+    scenario = copy.deepcopy(scenarios.get('P01_intro'))
+    sid = 'S01'
+    environment = scenario['environment'][sid]
+    environment['downlink_available'] = [False] * scenario['time']['steps']
+    environment['downlink_available'][2] = True
+    scenario['jobs'] = [job for job in scenario['jobs']
+                        if not (job['kind'] == 'downlink' and job['eligible_satellites'] == [sid])]
+    scenario['jobs'] += [
+        {'id': 'WIN', 'kind': 'downlink', 'release_step': 0, 'deadline_step': 6, 'work_steps': 1,
+         'eligible_satellites': [sid], 'priority': 3, 'value_usd': 50.0},
+        {'id': 'LOSE', 'kind': 'downlink', 'release_step': 0, 'deadline_step': 6, 'work_steps': 1,
+         'eligible_satellites': [sid], 'priority': 1, 'value_usd': 10.0},
+    ]
+    return scenario
+
+
+def test_a_job_that_lost_its_contact_keeps_the_contest_layer_after_its_deadline(client: TestClient):
+    """The group is short of contacts; which job gives way is our choice, and it stays visible."""
+    from backend.app.core.run import Run
+
+    run = Run(contest_scenario(), 'contest', planner_name='cosmostars', goal='priority')
+    run.advance_to(1)
+    ahead = run.explain_job('LOSE')
+    # Only the pair as a whole is provably short of contacts, and the verdict must say so
+    # instead of calling this one job impossible.
+    assert ahead['verdict'] == 'group_shortfall'
+    assert ahead['impossible']['certificate'] == 'satellite_contacts_oversubscribed'
+    assert ahead['competition']['slots_taken'][0]['taken_by'] == 'WIN'
+    assert ahead['competition']['counterfactual']['jobs_dropped'][0]['job_id'] == 'WIN'
+
+    run.advance_to(10)
+    after = run.explain_job('LOSE')
+    assert run.session.env.jobs['WIN']['completed_step'] == 3
+    assert after['verdict'] == 'outcompeted'
+    taken = after['competition']['slots_taken']
+    assert taken == [{'step': 2, 'satellite_id': 'S01', 'taken_by': 'WIN', 'source': 'log',
+                      'priority': 3, 'value_usd': 50.0}]
+    assert after['competition']['closed'] is True
+    assert after['competition']['counterfactual'] is None
+
+
+def test_missed_relay_jobs_name_who_took_the_satellite_time(client: TestClient):
+    """On the overloaded shift nearly every miss is a relay job; each one gets a reason."""
+    run_id = run_to(client, 288, scenario='P04_demand')
+    missed = client.get(f'/api/runs/{run_id}/jobs',
+                        params={'status': 'missed', 'limit': 5000}).json()['items']
+    relay = [item for item in missed if item['kind'] == 'relay']
+    assert len(relay) > 2000
+    verdicts: set[str] = set()
+    for item in relay[::60]:
+        report = client.get(f'/api/runs/{run_id}/jobs/{item["job_id"]}/explain').json()
+        contest = report['competition']
+        assert contest['kind'] == 'relay' and contest['closed']
+        # Every eligible satellite-step in the executed window is accounted for
+        # once: spent on this job, on another, on calibration, or idle.
+        accounted = (contest['busy_steps'] + contest['calibrate_steps']
+                     + contest['idle_in_contact_total'] + contest['idle_no_contact']
+                     + report['progress']['total'])
+        assert accounted == sum(report['instead']['satellite_steps_by_action'].values())
+        if report['verdict'] == 'outcompeted':
+            assert contest['busy_steps'] > 0 and contest['rivals']
+        verdicts.add(report['verdict'])
+    assert 'outcompeted' in verdicts
+    assert 'missed_without_attempt' not in verdicts

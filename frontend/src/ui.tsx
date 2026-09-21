@@ -44,11 +44,22 @@ export const action = (code: string | null | undefined) =>
 export const VERDICTS: Record<Verdict, { label: string; tone: 'crit' | 'warn' | 'good' | 'ser' | '' }> = {
   completed: { label: 'выполнено', tone: 'good' },
   impossible_by_data: { label: 'невозможно по данным', tone: 'ser' },
+  group_shortfall: { label: 'группе не хватает контактов', tone: 'ser' },
   refused_by_satellite: { label: 'не пустил аппарат', tone: 'crit' },
-  outcompeted: { label: 'проиграло контакт', tone: 'warn' },
+  outcompeted: { label: 'проиграло конкуренцию', tone: 'warn' },
+  resource_starved: { label: 'аппаратам не хватило ресурса', tone: 'crit' },
   missed_without_attempt: { label: 'срок вышел, попыток не было', tone: 'crit' },
   in_progress: { label: 'в работе', tone: '' },
   open: { label: 'ждёт своего окна', tone: '' },
+}
+
+/** Why an eligible satellite in relay contact stayed idle on a step. */
+export const IDLE_REASONS: Record<string, string> = {
+  unavailable: 'аппарат недоступен',
+  too_late: 'к сроку уже не успеть',
+  below_reserve: 'заряд ниже резерва',
+  calibration_expired: 'калибровка истекла',
+  other: 'иные причины',
 }
 
 export const CERTIFICATES: Record<string, string> = {

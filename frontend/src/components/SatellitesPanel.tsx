@@ -35,14 +35,15 @@ export function SatellitesPanel({ run }: { run: RunInfo }) {
       <Failure error={sats.error} what="Состояния аппаратов не загрузились" />
       <div className="two">
         <Card title="Аппараты"
-              note="Состояние на фронте расчёта: заряд, температура, срок калибровки, доступность и последняя команда с причиной, если она была отклонена.">
+              note="Состояние на фронте расчёта: заряд, температура, срок калибровки, загрузка — доля исполненных шагов, отданных заданиям, — доступность и последняя команда с причиной, если она была отклонена.">
           {sats.isPending ? <Loading what="Аппараты" /> : (
             <div className="scroll sats-scroll">
               <table>
                 <thead>
                   <tr>
                     <th>Аппарат</th><th>Заряд</th><th className="num">Темп., °C</th>
-                    <th className="num">Калибровка</th><th>Связь сейчас</th>
+                    <th className="num">Калибровка</th><th className="num">Загрузка</th>
+                    <th>Связь сейчас</th>
                     <th>Последнее действие</th>
                   </tr>
                 </thead>
@@ -63,6 +64,10 @@ export function SatellitesPanel({ run }: { run: RunInfo }) {
                       <td className="num">
                         {row.calibration_age_steps} / {row.calibration_valid_steps}
                         {row.calibration_expired && <Chip tone="warn">истекла</Chip>}
+                      </td>
+                      <td className="num"
+                          title={`работа ${row.job_steps} · калибровка ${row.calibrate_steps} · простой ${row.idle_steps} из ${row.steps_executed} шагов`}>
+                        {row.utilization_pct === null ? '—' : pct(row.utilization_pct)}
                       </td>
                       <td>
                         {row.downlink_now ? <Chip tone="good">есть</Chip> : <Chip>нет</Chip>}

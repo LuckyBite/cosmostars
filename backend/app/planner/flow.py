@@ -74,16 +74,3 @@ class MaxFlow:
     def flow_on(self, edge_id: int) -> int:
         """Flow pushed through an edge added with :meth:`add_edge`."""
         return self.cap[edge_id ^ 1]
-
-    def reachable_from(self, source: int) -> set[int]:
-        """Nodes still reachable in the residual network (min-cut source side)."""
-        seen = {source}
-        queue = deque([source])
-        while queue:
-            u = queue.popleft()
-            for edge_id in self.graph[u]:
-                v = self.to[edge_id]
-                if self.cap[edge_id] > 0 and v not in seen:
-                    seen.add(v)
-                    queue.append(v)
-        return seen

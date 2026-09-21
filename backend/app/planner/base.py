@@ -3,8 +3,9 @@
 A planner receives a :class:`StepView` at a step boundary and returns one action
 per satellite. The library rejects conflicting commands, but the statement is
 explicit that the planner must resolve them itself, so every planner builds its
-step through :class:`StepPlan`, which enforces the shared limits up front and
-records why each rejected candidate was dropped.
+step through :class:`StepPlan`, which enforces the shared limits up front: one
+executor per job, the global cap on simultaneous transmissions, and the
+library's own admissibility check before a command is ever issued.
 """
 from __future__ import annotations
 
@@ -41,56 +42,36 @@ class StepPlan:
     def __init__(self, view: StepView) -> None:
         self.view = view
         self.actions: dict[str, Action] = {}
-        self.notes: list[dict[str, Any]] = []
         self._claimed_jobs: set[str] = set()
         self._downlinks = 0
         self._downlink_limit = view.model['downlink_parallel_limit']
 
-    @property
-    def downlink_slots_left(self) -> int:
-        return self._downlink_limit - self._downlinks
-
-    def job_taken(self, job_id: str) -> bool:
-        return job_id in self._claimed_jobs
-
-    def _note(self, sid: str, job_id: str | None, reason: str) -> None:
-        self.notes.append({'satellite_id': sid, 'job_id': job_id, 'reason': reason})
-
     def try_job(self, sid: str, job: Job) -> bool:
         """Assign a job to a satellite if every constraint allows it."""
-        if sid in self.actions:
-            return False
-        job_id = job['id']
-        if job_id in self._claimed_jobs:
-            self._note(sid, job_id, 'taken_by_another_satellite')
+        if sid in self.actions or job['id'] in self._claimed_jobs:
             return False
         is_downlink = job['kind'] == 'downlink'
         if is_downlink and self._downlinks >= self._downlink_limit:
-            self._note(sid, job_id, 'ground_capacity')
             return False
-        ok, reason, _ = self.view.can_execute(sid, {'action': 'job', 'job_id': job_id})
+        ok, _reason, _power = self.view.can_execute(sid, {'action': 'job', 'job_id': job['id']})
         if not ok:
-            self._note(sid, job_id, reason)
             return False
-        self.actions[sid] = {'action': 'job', 'job_id': job_id}
-        self._claimed_jobs.add(job_id)
+        self.actions[sid] = {'action': 'job', 'job_id': job['id']}
+        self._claimed_jobs.add(job['id'])
         self._downlinks += int(is_downlink)
         return True
 
     def try_calibrate(self, sid: str) -> bool:
         if sid in self.actions:
             return False
-        ok, reason, _ = self.view.can_execute(sid, {'action': 'calibrate'})
+        ok, _reason, _power = self.view.can_execute(sid, {'action': 'calibrate'})
         if not ok:
-            self._note(sid, None, reason)
             return False
         self.actions[sid] = {'action': 'calibrate'}
         return True
 
-    def idle(self, sid: str, reason: str = 'no_admissible_work') -> None:
-        if sid not in self.actions:
-            self.actions[sid] = {'action': 'idle'}
-            self._note(sid, None, reason)
+    def idle(self, sid: str) -> None:
+        self.actions.setdefault(sid, {'action': 'idle'})
 
     def finish(self) -> dict[str, Action]:
         for sid in self.view.satellite_ids:

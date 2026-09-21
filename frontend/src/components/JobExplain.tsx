@@ -1,15 +1,18 @@
 import { X } from 'lucide-react'
 import { useContacts, useExplain } from '../api/client'
-import type { RunInfo } from '../api/types'
+import type { DownlinkContest, RelayContest, RunInfo } from '../api/types'
 import { useConsole } from '../store'
 import {
-  CERTIFICATES, Card, Chip, Empty, Failure, Loading, Note, VERDICTS, action, num, reason, usd,
+  CERTIFICATES, Card, Chip, Empty, Failure, IDLE_REASONS, Loading, Note, VERDICTS,
+  action, num, reason, usd,
 } from '../ui'
 import { WindowProof } from './charts'
 
 // The three layers are always shown in the same order — data, contest,
 // satellite — and a layer that has nothing to say says so. Collapsing them
 // into one sentence is exactly what the criterion asks us not to do.
+
+const GROUP_CERTIFICATE = 'satellite_contacts_oversubscribed'
 
 export function JobExplain({ run }: { run: RunInfo }) {
   const jobId = useConsole((s) => s.selectedJob)
@@ -21,7 +24,7 @@ export function JobExplain({ run }: { run: RunInfo }) {
   if (!jobId) {
     return (
       <Card title="Почему не вышло"
-            note="Выберите задание в таблице или клетку на полотне — разбор соберётся из сертификатов, решения по связи и журнала модели.">
+            note="Выберите задание в таблице или клетку на полотне — разбор соберётся из сертификатов, решения по связи, журнала модели и занятости аппаратов.">
         <Empty>Задание не выбрано.</Empty>
       </Card>
     )
@@ -33,7 +36,11 @@ export function JobExplain({ run }: { run: RunInfo }) {
   const verdict = VERDICTS[data.verdict]
   const sat = data.job.eligible_satellites[0]
   const windows = contacts?.items.find((item) => item.satellite_id === sat)
-  const counter = data.competition?.counterfactual
+  const contest = data.competition
+  const isGroup = data.impossible?.certificate === GROUP_CERTIFICATE
+  const contestOn = contest?.kind === 'downlink'
+    ? !contest.selected && contest.slots_taken_total > 0
+    : contest?.kind === 'relay' ? contest.busy_steps > 0 : false
 
   return (
     <Card
@@ -73,73 +80,32 @@ export function JobExplain({ run }: { run: RunInfo }) {
                   дефицит {data.impossible.shortfall}
                 </p>
               )}
-              <p className="tbl-note">
-                Сертификат выдан против сценария, а не против нашего расписания: его можно
-                проверить, не запуская наш планировщик.
-              </p>
+              {isGroup ? (
+                <p className="tbl-note">
+                  Сертификат групповой: доказано, что заданиям этого аппарата в интервале не
+                  хватает контактов, а не что невыполнимо именно это задание. Какое из них
+                  выпадет, выбирает планировщик по цели управления — это показывает слой 2.
+                </p>
+              ) : (
+                <p className="tbl-note">
+                  Сертификат выдан против сценария, а не против нашего расписания: его можно
+                  проверить, не запуская наш планировщик.
+                </p>
+              )}
             </>
           ) : (
             <p className="off">Данные выполнение не запрещают.</p>
           )}
         </li>
 
-        <li className={data.competition && !data.competition.selected ? 'on' : ''}>
-          <h4>2 · Проиграло контакт</h4>
-          {!data.competition ? (
-            <p className="off">
-              {data.job.kind === 'relay'
-                ? 'Ретрансляция не планируется заранее: контакт доступен почти всегда, решение принимается на шаге.'
-                : 'Расписание связи для этой смены не строилось.'}
-            </p>
-          ) : data.competition.selected ? (
-            <p className="off">Задание в расписании связи: контакт за ним закреплён.</p>
+        <li className={contestOn ? 'on' : ''}>
+          <h4>2 · {data.job.kind === 'downlink' ? 'Проиграло контакт' : 'Проиграло аппараты другим заданиям'}</h4>
+          {!contest ? (
+            <p className="off">Разбор конкуренции для этого задания не собрался.</p>
+          ) : contest.kind === 'downlink' ? (
+            <DownlinkLayer contest={contest} onStep={setCursor} />
           ) : (
-            <>
-              <p>
-                Контактов в окне: <b>{data.competition.slots_in_window}</b>, из них свободных{' '}
-                <b>{data.competition.slots_free}</b>, занятых другими заданиями{' '}
-                <b>{data.competition.slots_taken_total}</b>.
-              </p>
-              {!!data.competition.slots_taken.length && (
-                <div className="scroll">
-                  <table>
-                    <thead><tr><th>Шаг</th><th>Слот занял</th><th className="num">Приоритет</th>
-                      <th className="num">Цена</th></tr></thead>
-                    <tbody>
-                      {data.competition.slots_taken.slice(0, 10).map((row) => (
-                        <tr key={row.step} onClick={() => setCursor(row.step)}>
-                          <td className="num">{row.step}</td>
-                          <td className="id">{row.taken_by}</td>
-                          <td className="num">{row.priority}</td>
-                          <td className="num">{usd(row.value_usd)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {counter && (counter.servable ? (
-                <Note>
-                  <span>
-                    <b>Цена размена.</b> Расписание пересчитано с этим заданием, поставленным
-                    первым: оно выполнимо, но из плана выпадает{' '}
-                    <b>{num(counter.jobs_dropped_count)}</b> заданий на{' '}
-                    <b>{usd(counter.value_given_up_usd)}</b>
-                    {!!counter.critical_given_up && <>, включая {counter.critical_given_up} приоритета 3</>}.
-                    Взамен получаем {usd(counter.value_gained_usd)}
-                    {counter.critical_gained ? ' и одно обязательство приоритета 3' : ''}.
-                    {' '}{(counter.value_given_up_usd ?? 0) > (counter.value_gained_usd ?? 0)
-                      ? 'Размен не в пользу смены.'
-                      : 'Размен был бы в пользу смены — это граница нашего порядка отбора.'}
-                  </span>
-                </Note>
-              ) : (
-                <Note><span>
-                  <b>Цена размена.</b> Даже поставленное первым, задание не получает набора
-                  контактов: дело не в конкуренции, а в самих окнах.
-                </span></Note>
-              ))}
-            </>
+            <RelayLayer contest={contest} />
           )}
         </li>
 
@@ -205,5 +171,118 @@ export function JobExplain({ run }: { run: RunInfo }) {
         </p>
       )}
     </Card>
+  )
+}
+
+/** Ground contact: past slots from the log, future ones from the schedule. */
+function DownlinkLayer({ contest, onStep }: { contest: DownlinkContest; onStep: (step: number) => void }) {
+  const counter = contest.counterfactual
+  return (
+    <>
+      {contest.selected && <p className="off">Задание в расписании связи: контакт за ним закреплён.</p>}
+      <p>
+        Контактов в окне: <b>{contest.slots_in_window}</b> — отработано этим заданием{' '}
+        <b>{contest.slots_worked}</b>, занято другими <b>{contest.slots_taken_total}</b>,
+        свободных <b>{contest.slots_free}</b>
+        {contest.slots_free_past > 0 && <>, из них уже в прошлом {contest.slots_free_past}</>}.
+      </p>
+      {!!contest.slots_taken.length && (
+        <div className="scroll">
+          <table>
+            <thead><tr><th>Шаг</th><th>Слот занял</th><th className="num">Приоритет</th>
+              <th className="num">Цена</th><th>Откуда</th></tr></thead>
+            <tbody>
+              {contest.slots_taken.slice(0, 10).map((row) => (
+                <tr key={row.step} onClick={() => onStep(row.step)}>
+                  <td className="num">{row.step}</td>
+                  <td className="id">{row.taken_by}</td>
+                  <td className="num">{row.priority}</td>
+                  <td className="num">{usd(row.value_usd)}</td>
+                  <td>{row.source === 'log' ? 'журнал' : 'расписание'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {contest.closed ? (
+        <p className="tbl-note">
+          Срок вышел: занятость контактов взята из журнала исполнения. Цену размена задним
+          числом не пересчитать — расписание связи строится только вперёд.
+        </p>
+      ) : !contest.planned ? (
+        <p className="tbl-note">
+          Этот планировщик не держит расписание связи заранее: до курсора занятость взята из
+          журнала, впереди курсора она ещё не решена.
+        </p>
+      ) : counter && (counter.servable ? (
+        <Note>
+          <span>
+            <b>Цена размена.</b> Расписание пересчитано с этим заданием, поставленным
+            первым: оно выполнимо, но из плана выпадает{' '}
+            <b>{num(counter.jobs_dropped_count)}</b> заданий на{' '}
+            <b>{usd(counter.value_given_up_usd)}</b>
+            {!!counter.critical_given_up && <>, включая {counter.critical_given_up} приоритета 3</>}.
+            Взамен получаем {usd(counter.value_gained_usd)}
+            {counter.critical_gained ? ' и одно обязательство приоритета 3' : ''}.
+            {' '}{(counter.value_given_up_usd ?? 0) > (counter.value_gained_usd ?? 0)
+              ? 'Размен не в пользу смены.'
+              : 'Размен был бы в пользу смены — это граница нашего порядка отбора.'}
+          </span>
+        </Note>
+      ) : (
+        <Note><span>
+          <b>Цена размена.</b> Даже поставленное первым, задание не получает набора
+          контактов: дело не в конкуренции, а в самих окнах.
+        </span></Note>
+      ))}
+    </>
+  )
+}
+
+/** Relay: satellite time is the contested resource, and the log is the record. */
+function RelayLayer({ contest }: { contest: RelayContest }) {
+  const idle = contest.idle_in_contact
+  const reasons = (Object.keys(idle) as (keyof typeof idle)[]).filter((key) => idle[key] > 0)
+  return (
+    <>
+      <p>
+        В исполненной части окна, шаги {contest.window_executed[0]}–{contest.window_executed[1]},
+        допустимые аппараты были заняты другими заданиями <b>{num(contest.busy_steps)}</b>{' '}
+        аппарато-шагов
+        {contest.calibrate_steps > 0 && <>, калибровались <b>{num(contest.calibrate_steps)}</b></>}.
+      </p>
+      {!!contest.rivals.length && (
+        <div className="scroll">
+          <table>
+            <thead><tr><th>Кто занимал</th><th className="num">Шагов</th>
+              <th className="num">Приоритет</th><th className="num">Цена</th></tr></thead>
+            <tbody>
+              {contest.rivals.map((row) => (
+                <tr key={row.job_id}>
+                  <td className="id">{row.job_id}</td>
+                  <td className="num">{row.steps}</td>
+                  <td className="num">{row.priority ?? '—'}</td>
+                  <td className="num">{usd(row.value_usd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {contest.rivals_total > contest.rivals.length && (
+            <p className="tbl-note">Показаны {contest.rivals.length} из {contest.rivals_total} заданий.</p>
+          )}
+        </div>
+      )}
+      <p>
+        Простаивали при открытой связи <b>{num(contest.idle_in_contact_total)}</b> аппарато-шагов
+        {reasons.length > 0 && <>: {reasons.map((key) => `${IDLE_REASONS[key]} ${idle[key]}`).join(', ')}</>}.
+        Без связи для ретрансляции: {num(contest.idle_no_contact)}.
+      </p>
+      {!contest.closed && (
+        <p className="tbl-note">
+          Окно ещё открыто: ретрансляция решается на каждом шаге и заранее не обещается.
+        </p>
+      )}
+    </>
   )
 }

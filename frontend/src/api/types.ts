@@ -20,7 +20,20 @@ export interface ScenarioBrief {
   value_total_usd: number
   known_outages: number
   downlink_parallel_limit: number
-  source: 'bundled' | 'uploaded'
+  source: 'bundled' | 'uploaded' | 'derived'
+  derived_from?: DerivedFrom | null
+}
+
+/** Where a derived scenario came from and exactly what was changed in it. */
+export interface DerivedFrom {
+  scenario: string
+  scenario_id: string
+  changes: {
+    initial_soc_pct?: Record<string, number>
+    solar_multiplier?: number
+    job_priority?: Record<string, number>
+    outages?: { satellite_id: string; start_step: number; end_step: number }[]
+  }
 }
 
 export interface Summary {
@@ -80,6 +93,12 @@ export interface SatelliteRow {
   calibration_valid_steps: number
   calibration_expired: boolean
   available: boolean
+  steps_executed: number
+  job_steps: number
+  calibrate_steps: number
+  idle_steps: number
+  /** Share of executed steps spent on jobs; null before the first step. */
+  utilization_pct: number | null
   downlink_now: boolean | null
   relay_now: boolean | null
   last_action: string | null
@@ -218,8 +237,51 @@ export interface SlotPrices {
 }
 
 export type Verdict =
-  | 'completed' | 'impossible_by_data' | 'refused_by_satellite'
-  | 'outcompeted' | 'missed_without_attempt' | 'in_progress' | 'open'
+  | 'completed' | 'impossible_by_data' | 'group_shortfall' | 'refused_by_satellite'
+  | 'outcompeted' | 'resource_starved' | 'missed_without_attempt' | 'in_progress' | 'open'
+
+export interface Counterfactual {
+  servable: boolean
+  reason?: string
+  jobs_dropped?: { job_id: string; priority: number; value_usd: number; work_steps: number }[]
+  jobs_dropped_count?: number
+  value_given_up_usd?: number
+  critical_given_up?: number
+  value_gained_usd?: number
+  critical_gained?: number
+}
+
+/** Ground contact: who holds or held the slots this job needed. Past slots come
+ *  from the log, future ones from the committed schedule. */
+export interface DownlinkContest {
+  kind: 'downlink'
+  closed: boolean
+  planned: boolean
+  slots_in_window: number
+  slots_worked: number
+  slots_free: number
+  slots_free_past: number
+  slots_taken: { step: number; satellite_id: string; taken_by: string; source: 'log' | 'schedule'; priority: number | null; value_usd: number | null }[]
+  slots_taken_total: number
+  selected: boolean
+  counterfactual: Counterfactual | null
+}
+
+export type IdleReason = 'unavailable' | 'too_late' | 'below_reserve' | 'calibration_expired' | 'other'
+
+/** Relay: what the eligible satellites did on the steps this job could have used. */
+export interface RelayContest {
+  kind: 'relay'
+  closed: boolean
+  window_executed: [number, number]
+  busy_steps: number
+  calibrate_steps: number
+  rivals: { job_id: string; steps: number; priority: number | null; value_usd: number | null }[]
+  rivals_total: number
+  idle_in_contact: Record<IdleReason, number>
+  idle_in_contact_total: number
+  idle_no_contact: number
+}
 
 export interface Explain {
   job_id: string
@@ -237,23 +299,7 @@ export interface Explain {
   }
   verdict: Verdict
   impossible: Certificate | null
-  competition: {
-    slots_in_window: number
-    slots_free: number
-    slots_taken: { step: number; satellite_id: string; taken_by: string; priority: number | null; value_usd: number | null }[]
-    slots_taken_total: number
-    selected: boolean
-    counterfactual: null | {
-      servable: boolean
-      reason?: string
-      jobs_dropped?: { job_id: string; priority: number; value_usd: number; work_steps: number }[]
-      jobs_dropped_count?: number
-      value_given_up_usd?: number
-      critical_given_up?: number
-      value_gained_usd?: number
-      critical_gained?: number
-    }
-  } | null
+  competition: DownlinkContest | RelayContest | null
   refusals: { rows: { step: number; satellite_id: string; reason: string; executed: string }[]; total: number; dominant_reason: string | null }
   progress: { rows: { step: number; satellite_id: string; reason: string; executed: string }[]; total: number }
   instead: {

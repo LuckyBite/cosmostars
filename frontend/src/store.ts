@@ -81,6 +81,9 @@ export const useConsole = create<ConsoleState>((set, get) => ({
 
   openRun: (runId) => set((state) => {
     remember(runId)
+    // A shift opens at its head — clock, timeline and tabs — not wherever the
+    // catalogue happened to be scrolled to when the operator picked it.
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
     return {
     runId,
     frontier: 0,

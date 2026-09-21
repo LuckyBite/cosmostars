@@ -184,3 +184,12 @@ section[role="tabpanel"] { display: flex; flex-direction: column; gap: 18px; }
 .plot { width: 100%; }
 .plot .u-legend { display: none; }
 .uplot, .u-wrap { font-family: var(--mono) !important; }
+
+/* --- pre-run conditions ---------------------------------------------------- */
+
+.derive { margin: -6px 0 20px; font-size: 13px; }
+.derive summary { cursor: pointer; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.derive > p { margin: 8px 0 6px; max-width: 84ch; color: var(--ink-3); font-size: 12px; }
+.derive .event-forms .field { flex: 0 1 150px; }
+.derive .event-forms .field.wide { flex: 0 1 220px; }
+.scn .changes { margin: 0; font-size: 11px; color: var(--ink-3); }

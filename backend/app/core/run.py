@@ -7,10 +7,13 @@ each keeps its own environment, its own planner state and its own event log.
 from __future__ import annotations
 
 import copy
+import functools
 import itertools
+import threading
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
 from model.operations import Session
 
@@ -25,6 +28,26 @@ from .errors import BadRequest, EventRejected
 _counter = itertools.count(1)
 
 UNKNOWN_CELL = ' '
+
+P = ParamSpec('P')
+T = TypeVar('T')
+
+
+def _guarded(method: Callable[Concatenate[Run, P], T]) -> Callable[Concatenate[Run, P], T]:
+    """Serialise every call on one run.
+
+    The service answers each request in its own thread, and two requests for
+    the same shift do arrive together: a second tab, a jury route running while
+    the operator clicks, a message posted while an hour is being computed.
+    Planning a step while another thread executes one corrupts both — the
+    planner reads a job index the other thread is rewriting — so every
+    operation on a run holds that run's own lock. Runs never wait for each other.
+    """
+    @functools.wraps(method)
+    def wrapper(self: Run, *args: P.args, **kwargs: P.kwargs) -> T:
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return wrapper
 
 
 def _intervals(flags: list[Any]) -> list[list[int]]:
@@ -60,6 +83,7 @@ class Run:
         self.parent_id: str | None = None
         self.forked_at_step: int | None = None
         self.goal_switches: list[dict[str, Any]] = []
+        self._lock = threading.RLock()
         self.planner = build_planner(planner_name, goal, **(parameters or {}))
         self.session = Session(scenario, run_metadata=self._run_metadata())
         self.view = StepView(self.session.env)
@@ -86,6 +110,11 @@ class Run:
     def goal(self) -> str:
         return self.planner.goal
 
+    @_guarded
+    def summary(self) -> dict[str, Any]:
+        """The library's figures for the executed part of the shift."""
+        return self.session.summary()
+
     def _run_metadata(self) -> dict[str, Any]:
         data = self.planner.metadata()
         data['run_id'] = self.id
@@ -98,6 +127,7 @@ class Run:
         return data
 
     # --- execution --------------------------------------------------------
+    @_guarded
     def advance(self, steps: int = 1) -> int:
         """Run the planner for up to ``steps`` boundaries; returns steps executed."""
         if steps < 0:
@@ -109,6 +139,7 @@ class Run:
             executed += 1
         return executed
 
+    @_guarded
     def advance_to(self, target_step: int) -> int:
         """Stop before the given step, as the operator asks for on the timeline."""
         if not 0 <= target_step <= self.total_steps:
@@ -117,6 +148,7 @@ class Run:
             raise BadRequest('Executed history is never recomputed; branch instead')
         return self.advance(target_step - self.step)
 
+    @_guarded
     def apply_event(self, event: dict[str, Any]) -> dict[str, Any]:
         """Accept one message at this boundary, or refuse it without side effects."""
         try:
@@ -128,6 +160,7 @@ class Run:
         self.planner.on_event(event, self.view)
         return copy.deepcopy(event)
 
+    @_guarded
     def set_goal(self, goal: str) -> None:
         """Switch the management goal; it only affects the steps still ahead."""
         goal = check_goal(goal)
@@ -136,6 +169,7 @@ class Run:
         self.planner.set_goal(goal)
         self.goal_switches.append({'step': self.step, 'goal': goal})
 
+    @_guarded
     def fork(self, title: str | None = None) -> Run:
         """Independent continuation from this exact control state."""
         branch = copy.copy(self)
@@ -144,6 +178,7 @@ class Run:
         branch.parent_id = self.id
         branch.forked_at_step = self.step
         branch.title = title or f'{self.title} → ветвь {branch.id[:4]}'
+        branch._lock = threading.RLock()   # driven on its own, so it waits on nobody
         branch.session = self.session.fork()
         branch.planner = copy.deepcopy(self.planner)
         branch.goal_switches = list(self.goal_switches)
@@ -151,6 +186,7 @@ class Run:
         return branch
 
     # --- operator views ---------------------------------------------------
+    @_guarded
     def info(self) -> dict[str, Any]:
         return {
             'run_id': self.id,
@@ -172,10 +208,18 @@ class Run:
             'summary': self.session.summary(),
         }
 
+    @_guarded
     def satellites(self) -> list[dict[str, Any]]:
         env = self.session.env
         valid_for = env.s['model']['calibration_valid_steps']
         last: dict[str, dict[str, Any]] = {}
+        # Utilisation as the data description defines it: the share of executed
+        # steps spent on jobs, with waiting and calibration counted apart, and
+        # no share at all before the first step rather than an invented zero.
+        spent: dict[str, dict[str, int]] = {sid: {'job': 0, 'calibrate': 0, 'idle': 0}
+                                            for sid in env.sats}
+        for row in env.trace:
+            spent[row['satellite_id']][row['executed']] += 1
         for row in reversed(env.trace):
             last.setdefault(row['satellite_id'], row)
             if len(last) == len(env.sats):
@@ -195,6 +239,12 @@ class Run:
                 'calibration_valid_steps': valid_for,
                 'calibration_expired': state['calibration_age_steps'] >= valid_for,
                 'available': env.available(sid),
+                'steps_executed': self.step,
+                'job_steps': spent[sid]['job'],
+                'calibrate_steps': spent[sid]['calibrate'],
+                'idle_steps': spent[sid]['idle'],
+                'utilization_pct': (round(100 * spent[sid]['job'] / self.step, 2)
+                                    if self.step else None),
                 'downlink_now': self.view.contact(sid, 'downlink') if not self.finished else None,
                 'relay_now': self.view.contact(sid, 'relay') if not self.finished else None,
                 'last_action': row['executed'] if row else None,
@@ -202,6 +252,7 @@ class Run:
             })
         return out
 
+    @_guarded
     def jobs(self, status: str = 'all', limit: int = 200, offset: int = 0) -> dict[str, Any]:
         env = self.session.env
         step = self.step
@@ -235,6 +286,7 @@ class Run:
         return {'total': len(rows), 'offset': offset, 'limit': limit,
                 'items': rows[offset:offset + limit]}
 
+    @_guarded
     def trace(self, from_step: int | None = None, to_step: int | None = None,
               satellite_id: str | None = None, limit: int = 2000) -> dict[str, Any]:
         rows = self.session.env.trace
@@ -245,6 +297,7 @@ class Run:
                   and (satellite_id is None or row['satellite_id'] == satellite_id)]
         return {'total': len(picked), 'limit': limit, 'items': picked[:limit]}
 
+    @_guarded
     def series(self, satellite_id: str) -> dict[str, Any]:
         env = self.session.env
         if satellite_id not in env.sats:
@@ -267,6 +320,7 @@ class Run:
             'points': points,
         }
 
+    @_guarded
     def events(self) -> list[dict[str, Any]]:
         """Messages accepted so far, in receipt order.
 
@@ -275,6 +329,7 @@ class Run:
         """
         return copy.deepcopy(self.session.events)
 
+    @_guarded
     def contacts(self) -> dict[str, Any]:
         """Contact windows and announced outages, as intervals.
 
@@ -297,6 +352,7 @@ class Run:
                          'end_step': f['end_step']} for f in env.s['failures']],
         }
 
+    @_guarded
     def grid(self) -> dict[str, Any]:
         """The executed shift as one character per satellite-step.
 
@@ -365,14 +421,17 @@ class Run:
         counts['revenue_usd'] = [round(value, 6) for value in counts['revenue_usd']]
         return counts
 
+    @_guarded
     def audit(self) -> dict[str, Any]:
         """Пересчёт исполненной истории реализацией, не зависящей от библиотеки."""
         return audit_mod.audit(self)
 
+    @_guarded
     def explain_job(self, job_id: str) -> dict[str, Any]:
         """Layered account of one job's fate: data, contest, satellite."""
         return explain_mod.explain(self, job_id)
 
+    @_guarded
     def slot_prices(self) -> dict[str, Any] | None:
         """What each contested contact slot cost, when a schedule exists."""
         if not isinstance(self.planner, SmartPlanner):
@@ -383,6 +442,7 @@ class Run:
             return None
         return downlink_mod.slot_prices(self.view, schedule)
 
+    @_guarded
     def feasibility(self) -> dict[str, Any]:
         """What is provable now, alongside what was provable at the start.
 
@@ -396,6 +456,7 @@ class Run:
         report['at_open'] = self.initial_feasibility
         return report
 
+    @_guarded
     def downlink_plan(self) -> dict[str, Any] | None:
         """The committed transmission schedule, when the planner keeps one."""
         if not isinstance(self.planner, SmartPlanner):
@@ -404,6 +465,7 @@ class Run:
         schedule = self.planner.schedule
         return schedule.as_dict() if schedule is not None else None
 
+    @_guarded
     def result(self) -> dict[str, Any]:
         """Machine-readable export, replayable by the reference library."""
         self.session.run_metadata = self._run_metadata()

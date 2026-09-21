@@ -99,3 +99,50 @@ def test_feasibility_report_is_available_to_the_operator(client: TestClient):
     report = client.get(f'/api/runs/{run_id}/feasibility').json()
     assert report['totals']['impossible_job_count'] == 44
     assert report['impossible_jobs'][0]['certificate'] == 'contact_window_shorter_than_work'
+
+
+def test_operator_can_change_conditions_and_save_them_as_a_new_scenario(client: TestClient):
+    """The pre-run edits the statement names: charge, solar coefficient, priority, outage."""
+    base = next(item for item in client.get('/api/scenarios').json()['items']
+                if item['key'] == 'P01_intro')
+    body = {'initial_soc_pct': {'S01': 40}, 'solar_multiplier': 0.5,
+            'job_priority': {'JOB-0001': 3},
+            'outages': [{'satellite_id': 'S02', 'start_step': 3, 'end_step': 9}]}
+    response = client.post('/api/scenarios/P01_intro/derive', json=body)
+    assert response.status_code == 201, response.text
+    item = response.json()
+    assert item['source'] == 'derived'
+    assert item['known_outages'] == base['known_outages'] + 1
+    assert item['derived_from']['scenario'] == 'P01_intro'
+    assert item['derived_from']['changes']['job_priority'] == {'JOB-0001': 3}
+    assert item['key'] in {row['key'] for row in client.get('/api/scenarios').json()['items']}
+
+    run_id = start_run(client, item['key'])
+    satellites = client.get(f'/api/runs/{run_id}/satellites').json()['items']
+    assert next(sat for sat in satellites if sat['satellite_id'] == 'S01')['soc_pct'] == 40
+    # The provenance travels with every export made from the derived shift.
+    exported = client.get(f'/api/runs/{run_id}/result').json()
+    assert exported['initial_scenario']['meta']['derived_from']['changes']['solar_multiplier'] == 0.5
+
+    # The original is untouched, and a comparison with it says the conditions differ.
+    original = start_run(client, 'P01_intro')
+    comparison = client.get('/api/compare', params={'left': run_id, 'right': original}).json()
+    assert comparison['comparability']['comparable'] is False
+    assert any('разных сценариях' in warning for warning in comparison['comparability']['warnings'])
+
+    # Nonsense is refused with a reason, and nothing is saved.
+    before = len(client.get('/api/scenarios').json()['items'])
+    refused = client.post('/api/scenarios/P01_intro/derive', json={'initial_soc_pct': {'S99': 50}})
+    assert refused.status_code == 400 and 'S99' in refused.json()['message']
+    assert client.post('/api/scenarios/P01_intro/derive', json={}).status_code == 400
+    assert len(client.get('/api/scenarios').json()['items']) == before
+
+
+def test_satellite_utilisation_is_reported_as_the_data_description_defines_it(client: TestClient):
+    run_id = start_run(client)
+    fresh = client.get(f'/api/runs/{run_id}/satellites').json()['items'][0]
+    assert fresh['utilization_pct'] is None and fresh['steps_executed'] == 0
+    client.post(f'/api/runs/{run_id}/advance', json={'to_step': 20})
+    for sat in client.get(f'/api/runs/{run_id}/satellites').json()['items']:
+        assert sat['job_steps'] + sat['calibrate_steps'] + sat['idle_steps'] == 20
+        assert sat['utilization_pct'] == round(100 * sat['job_steps'] / 20, 2)
