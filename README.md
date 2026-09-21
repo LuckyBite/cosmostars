@@ -283,13 +283,25 @@ docker run --rm -p 7860:7860 cosmostars
 сервис и обратный прокси, [`Caddyfile`](Caddyfile) выдаёт TLS.
 
 ```bash
-git clone <репозиторий> cosmostars && cd cosmostars
+git clone https://github.com/LuckyBite/cosmostars.git && cd cosmostars
 cp .env.example .env          # вписать SITE_ADDRESS, если есть домен
 docker compose up -d --build
 ```
 
 Требования скромные: 1 ГБ памяти и 1 vCPU достаточно, 2 ГБ дают запас на
 маршруты жюри со всеми ветвлениями. Диска хватит 10 ГБ.
+
+Сборка интерфейса внутри образа хочет около гигабайта памяти, и на машине с
+гигабайтом ей нужен своп. Собирать на сервере вообще не обязательно: CI
+публикует тот же образ, который сам же поднял и проверил, поэтому достаточно
+дописать в `.env` строку
+
+```
+COSMOSTARS_IMAGE=ghcr.io/luckybite/cosmostars:main
+```
+
+и поднять сервис командой `docker compose pull && docker compose up -d`.
+Это те же секунды вместо минут сборки.
 
 С доменом в `SITE_ADDRESS` Caddy сам получает сертификат Let's Encrypt и
 продлевает его. Без домена сервис отвечает по HTTP на 80 порту — для кейса этого
