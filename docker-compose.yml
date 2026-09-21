@@ -1,0 +1,46 @@
+# Развёртывание на VPS: сервис плюс обратный прокси с автоматическим TLS.
+#
+# Реплика ровно одна и другой быть не может: смена живёт в памяти процесса,
+# и вторая реплика развела бы запросы одной смены по разным процессам.
+# Поэтому здесь нет ни `deploy.replicas`, ни балансировки — это не упущение.
+#
+#   cp .env.example .env     # и вписать SITE_ADDRESS, если есть домен
+#   docker compose up -d --build
+#
+# Без SITE_ADDRESS сервис отвечает по HTTP на 80 порту; с доменом Caddy сам
+# получает сертификат Let's Encrypt и держит его продление.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      # На VPS памяти больше, чем на бесплатном инстансе: смена стоит 17–26 МБ,
+      # и тридцать две смены — это запас на маршруты жюри со всеми ветвлениями.
+      COSMOSTARS_MAX_RUNS: ${COSMOSTARS_MAX_RUNS:-32}
+    expose:
+      - "7860"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/api/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:
