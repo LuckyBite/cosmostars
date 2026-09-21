@@ -29,4 +29,8 @@ ALLOWED_ORIGINS = [origin for origin in
 # overloaded one, so the default is set for the smallest target we deploy to: a
 # 512 MB free instance. On a normal machine raise it.
 MAX_RUNS = int(os.environ.get('COSMOSTARS_MAX_RUNS', '12'))
-MAX_UPLOAD_BYTES = int(os.environ.get('COSMOSTARS_MAX_UPLOAD_BYTES', str(64 * 1024 * 1024)))
+# Самый большой законный запрос — суточная выгрузка на проверку, около 10 МБ.
+# Разбор JSON стоит в несколько раз больше самого файла, поэтому шестьдесят
+# четыре мегабайта, стоявшие здесь раньше, означали бы способ исчерпать память
+# сервиса одним запросом.
+MAX_UPLOAD_BYTES = int(os.environ.get('COSMOSTARS_MAX_UPLOAD_BYTES', str(16 * 1024 * 1024)))

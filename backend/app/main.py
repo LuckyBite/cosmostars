@@ -23,8 +23,30 @@ app = FastAPI(
     description='Оператор наземной смены: планирование, события, ветвление, сравнение.',
 )
 # The shift views are repetitive JSON and compress by an order of magnitude;
-# over a free host's link that is the difference between instant and sluggish.
+# over a modest link that is the difference between instant and sluggish.
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+@app.middleware('http')
+async def limit_request_body(request: Request, call_next):
+    """Refuse a body larger than the service is willing to parse.
+
+    Two endpoints take files from the operator: an uploaded scenario and an
+    export to replay. A megabyte of JSON becomes several megabytes of Python
+    objects, so an unbounded body is a way to exhaust the memory of a small
+    machine with one request. The limit is stated rather than assumed: a daily
+    export is about ten megabytes, and the default leaves room for that.
+    """
+    declared = request.headers.get('content-length')
+    if declared is not None and declared.isdigit() and int(declared) > config.MAX_UPLOAD_BYTES:
+        return JSONResponse(status_code=413, content={
+            'error': 'PayloadTooLarge',
+            'message': (f'Тело запроса больше {config.MAX_UPLOAD_BYTES // (1024 * 1024)} МБ. '
+                        'Суточная выгрузка весит около 10 МБ; если файл законно больше, '
+                        'поднимите COSMOSTARS_MAX_UPLOAD_BYTES.'),
+            'detail': {'content_length': int(declared), 'limit': config.MAX_UPLOAD_BYTES},
+        })
+    return await call_next(request)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.ALLOWED_ORIGINS,

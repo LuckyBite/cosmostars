@@ -194,3 +194,36 @@ def test_health_says_how_many_shifts_are_held(client: TestClient):
     body = client.get('/api/health').json()
     assert body['status'] == 'ok'
     assert body['runs_held'] <= body['runs_capacity']
+
+
+def test_downlink_selection_reaches_the_flow_optimum(client: TestClient):
+    """The claim the README makes: the gap is measured, and it is zero.
+
+    The relaxed flow optimum ignores the all-or-nothing payment rule, so no
+    planner can beat it. Our selection order is only provably optimal for
+    single-step jobs, which is exactly why this has to be measured rather than
+    asserted — if a data change opens a gap, this test says so.
+    """
+    from backend.app.core import scenarios
+    from backend.app.core.run import Run
+    from backend.app.planner import downlink
+
+    for key in ('P01_intro', 'P02_shift'):
+        run = Run(scenarios.get(key), key, planner_name='cosmostars', goal='priority')
+        optimum = downlink.ceiling(run.view)['work_steps_schedulable']
+        run.advance_to(run.total_steps)
+        served = sum(row.count('d') for row in run.grid()['actions'].values())
+        assert served == optimum, f'{key}: передано {served} из {optimum}'
+
+
+def test_an_oversized_body_is_refused_before_it_is_parsed(client: TestClient):
+    """A megabyte of JSON becomes several megabytes of objects; the limit is real."""
+    from backend.app.core import config
+
+    payload = {'key': 'too-big', 'scenario': {'padding': 'x' * (config.MAX_UPLOAD_BYTES + 1024)}}
+    response = client.post('/api/scenarios', json=payload)
+    assert response.status_code == 413
+    assert 'МБ' in response.json()['message']
+    # A legitimate export stays well inside the limit and still verifies.
+    export = client.get(f'/api/runs/{run_to(client, 48, "P01_intro")}/result').json()
+    assert client.post('/api/verify', json={'result': export}).json()['verdict'] == 'reproduced'
