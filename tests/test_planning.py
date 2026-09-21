@@ -89,3 +89,40 @@ def test_advance_never_recomputes_history():
     run.advance(5)
     with pytest.raises(BadRequest, match='never recomputed'):
         run.advance_to(2)
+
+
+def test_exact_matching_for_relay_is_measured_not_assumed():
+    """Утверждение README: точное паросочетание проигрывает под целью «приоритет».
+
+    Жадная раздача ретрансляции — проверенное решение, а не упущение. Здесь
+    закреплён сам вывод: если данные или правило изменятся и паросочетание
+    начнёт выигрывать, тест об этом скажет, и записку придётся переписать.
+    """
+    results = {}
+    for planner in ('cosmostars', 'cosmostars-match'):
+        run = Run(scenarios.get('P04_demand'), 'P04_demand',
+                  planner_name=planner, goal='priority')
+        run.advance_to(run.total_steps)
+        results[planner] = run.session.summary()
+
+    greedy, matched = results['cosmostars'], results['cosmostars-match']
+    # Под целью «приоритет» наш планировщик лучше по обоим главным показателям.
+    assert greedy['critical_jobs_completed_on_time'] > matched['critical_jobs_completed_on_time']
+    assert greedy['jobs_completed'] > matched['jobs_completed']
+    # А паросочетание не «хуже вообще»: оно берёт больше денег и меньше тратит
+    # работы впустую — это размен, и он должен остаться видимым.
+    assert matched['revenue_usd'] > greedy['revenue_usd']
+    assert matched['work_steps_in_missed_jobs'] < greedy['work_steps_in_missed_jobs']
+    # Ни один из них не нарушает ограничений модели.
+    assert greedy['blocked_command_count'] == matched['blocked_command_count'] == 0
+
+
+def test_matching_changes_nothing_where_greedy_already_reaches_the_ceiling():
+    """На P02 жадное правило уже на потолке, и замена раздачи ничего не меняет."""
+    summaries = []
+    for planner in ('cosmostars', 'cosmostars-match'):
+        run = Run(scenarios.get('P02_shift'), 'P02_shift', planner_name=planner, goal='priority')
+        run.advance_to(run.total_steps)
+        summaries.append(run.session.summary())
+    for key in ('jobs_completed', 'critical_jobs_completed_on_time', 'revenue_usd'):
+        assert summaries[0][key] == summaries[1][key], key

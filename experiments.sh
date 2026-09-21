@@ -46,6 +46,9 @@ if run_block sweep; then
     echo "=== Цели расходятся при перегрузке ==="
     $PY -m backend.cli sweep --scenarios P04_demand --planners cosmostars
     echo
+    echo "=== Точное паросочетание для ретрансляции против жадного правила ==="
+    $PY -m backend.cli sweep --scenarios P02_shift P03_energy P04_demand         --planners cosmostars cosmostars-match --goals priority
+    echo
 fi
 
 if run_block ceiling; then

@@ -72,7 +72,13 @@ export function StartScreen() {
             <select id="planner" value={planner} onChange={(e) => setPlanner(e.target.value)}>
               <option value="cosmostars">cosmostars · точная связь + жадная ретрансляция</option>
               <option value="baseline-edf">baseline-edf · простое правило по сроку</option>
+              <option value="cosmostars-match">cosmostars-match · ретрансляция паросочетанием</option>
             </select>
+            <span className="hint">
+              Третий — тот же наш планировщик с одной заменой: ретрансляция раздаётся точным
+              паросочетанием. На перегрузке он берёт больше выручки и меньше обязательств,
+              то есть проигрывает под целью «приоритет». Сравните сами на вкладке «Ветви».
+            </span>
           </div>
           <label className="btn upload">
             <Upload size={14} aria-hidden /> Свой сценарий

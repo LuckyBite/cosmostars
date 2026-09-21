@@ -1,19 +1,23 @@
 """Planners available to the service.
 
-Two entries on purpose: the disclosed simple rule the statement asks us to
-compare against, and the team planner. Both take the same goal and see the same
-information, so a comparison between them is a comparison of method only.
+Three entries on purpose. The disclosed simple rule the statement asks us to
+compare against; the team planner; and the same team planner with one part
+replaced — relay handed out by exact matching instead of greedily. All three
+take the same goal and see the same information, so a comparison between them is
+a comparison of method only, and the third isolates a single design decision.
 """
 from __future__ import annotations
 
 from .base import GOALS, Planner, StepPlan, check_goal, job_score
 from .baseline_edf import EDFPlanner
+from .matched import MatchedRelayPlanner
 from .smart import SmartPlanner
 from .view import StepView
 
 PLANNERS: dict[str, type[Planner]] = {
     EDFPlanner.name: EDFPlanner,
     SmartPlanner.name: SmartPlanner,
+    MatchedRelayPlanner.name: MatchedRelayPlanner,
 }
 
 DEFAULT_PLANNER = SmartPlanner.name
@@ -30,6 +34,7 @@ __all__ = [
     'GOALS',
     'PLANNERS',
     'EDFPlanner',
+    'MatchedRelayPlanner',
     'Planner',
     'SmartPlanner',
     'StepPlan',
