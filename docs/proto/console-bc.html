@@ -1,0 +1,919 @@
+<title>Пульт смены · раскладки B и C</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --void:#080D18; --plane:#0B1220; --panel:#101728; --panel-2:#162034; --raised:#1C2740;
+  --hair:rgba(255,255,255,.07); --hair-2:rgba(255,255,255,.12);
+  --ink:#E6EAF2; --ink-2:#9AA6BE; --ink-3:#6B7893;
+  --s1:#2BA5B8; --s2:#8E64EC; --s3:#B5862B;
+  --s1-dim:rgba(43,165,184,.22); --idle:#1A2439; --off:#2B3A52;
+  --accent:#7AA2FF; --accent-ink:#07101F;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --sans:"Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  --win:rgba(43,165,184,.20);
+  --gridline:rgba(255,255,255,.055); --row-sel:rgba(122,162,255,.10);
+  --hist:rgba(154,166,190,.55); --hist-dim:rgba(154,166,190,.2);
+  --td-line:rgba(255,255,255,.04); --topbar:rgba(8,13,24,.82); --axisbg:rgba(16,23,40,.5);
+  --glow-1:rgba(142,100,236,.13); --glow-2:rgba(43,165,184,.11);
+  --r:10px; --r-s:6px;
+}
+body[data-palette="black"]{
+  --void:#050608; --plane:#070809; --panel:#0C0E12; --panel-2:#13161B; --raised:#1A1E25;
+  --hair:rgba(255,255,255,.09); --hair-2:rgba(255,255,255,.17);
+  --ink:#F4F6F8; --ink-2:#A7AEB8; --ink-3:#6E757F;
+  --s1:#17A2C9; --s2:#C2479B; --s3:#869619;
+  --s1-dim:rgba(23,162,201,.22); --win:rgba(23,162,201,.18);
+  --idle:#181C22; --off:#2A2F37; --accent:#17A2C9; --accent-ink:#04070A;
+  --gridline:rgba(255,255,255,.06); --row-sel:rgba(23,162,201,.13);
+  --hist:rgba(167,174,184,.5); --hist-dim:rgba(167,174,184,.18);
+  --td-line:rgba(255,255,255,.05); --topbar:rgba(5,6,8,.85); --axisbg:rgba(12,14,18,.6);
+  --glow-1:rgba(194,71,155,.11); --glow-2:rgba(23,162,201,.10)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--sans);font-size:15px;line-height:1.45;color:var(--ink);
+  background:
+    radial-gradient(900px 480px at 12% -6%, var(--glow-1), transparent 62%),
+    radial-gradient(760px 420px at 88% 4%, var(--glow-2), transparent 60%),
+    var(--void);
+  background-attachment:fixed}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{padding-inline:18px;max-width:1720px;margin:0 auto}
+@media (max-width:560px){.wrap{padding-inline:14px}}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--topbar);backdrop-filter:blur(14px);border-bottom:1px solid var(--hair)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding-block:11px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.sigil{width:26px;height:26px;border-radius:7px;background:linear-gradient(145deg,var(--s1),var(--s2));position:relative;flex:none}
+.sigil::after{content:"";position:absolute;inset:6px;border-radius:50%;border:1.5px solid rgba(8,13,24,.75);border-bottom-color:transparent}
+.brand .nm{display:flex;flex-direction:column;line-height:1.15}
+.brand .nm b{font-size:13.5px;font-weight:600}
+.brand .nm span{font-size:10.5px;color:var(--ink-3)}
+.ctl{display:flex;align-items:center;gap:7px}
+.ctl>label{font-size:10.5px;color:var(--ink-3)}
+select{font:inherit;font-size:13px;background:var(--panel);color:var(--ink);border:1px solid var(--hair);border-radius:var(--r-s);padding:5px 8px;max-width:min(58vw,300px)}
+.seg{display:flex;background:var(--panel);border:1px solid var(--hair);border-radius:var(--r-s);padding:2px;gap:2px}
+.seg button{background:none;border:0;border-radius:4px;padding:5px 12px;font-size:13.5px;color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--raised);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hair-2)}
+.clock{display:flex;align-items:baseline;gap:7px}
+.clock b{font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-.02em}
+.clock i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.btn{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r-s);padding:6px 11px;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--panel-2)}
+.btn.key{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+kbd{font-family:var(--mono);font-size:10px;color:var(--ink-3);border:1px solid var(--hair);border-radius:3px;padding:0 3px;margin-left:5px}
+
+/* ---------- shift axis ---------- */
+.axis{border-bottom:1px solid var(--hair);background:var(--axisbg)}
+.axis .wrap{padding-block:8px 6px}
+.axis-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:11px;color:var(--ink-3)}
+.track{position:relative;height:62px;margin-top:2px}
+.axis-hist{position:absolute;left:0;right:0;bottom:12px;width:100%;height:24px;opacity:.8}
+.track-bg{position:absolute;left:0;right:0;bottom:6px;height:4px;background:var(--idle);border-radius:2px;overflow:hidden}
+.track-done{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--s2),var(--s1));border-radius:2px}
+.evt{position:absolute;bottom:6px;display:flex;flex-direction:column;align-items:flex-start;background:none;border:0;padding:0;cursor:pointer}
+.evt em{font-style:normal;font-size:10.5px;white-space:nowrap;color:var(--ink-3);transform:translateX(-1px)}
+.evt span{width:1px;background:var(--ink-3)}
+.evt[data-row="0"] span{height:42px} .evt[data-row="1"] span{height:24px}
+.evt[data-k="close"] em,.evt[data-k="close"] span{color:var(--serious)} .evt[data-k="close"] span{background:var(--serious)}
+.evt[data-k="outage"] em{color:var(--crit)} .evt[data-k="outage"] span{background:var(--crit)}
+.evt[data-k="jobs"] em{color:var(--s1)} .evt[data-k="jobs"] span{background:var(--s1)}
+.evt[data-k="goal"] em{color:var(--s2)} .evt[data-k="goal"] span{background:var(--s2)}
+.evt.flip{align-items:flex-end} .evt.flip span{align-self:flex-end} .evt.flip em{transform:translateX(1px)}
+input[type=range]{position:absolute;left:0;right:0;bottom:0;width:100%;margin:0;-webkit-appearance:none;appearance:none;background:none;height:20px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:2px;height:20px;background:var(--ink);border-radius:1px;cursor:ew-resize;box-shadow:0 0 0 3px rgba(122,162,255,.18)}
+input[type=range]::-moz-range-thumb{width:2px;height:20px;background:var(--ink);border:0;border-radius:1px;cursor:ew-resize}
+.hours{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;color:var(--ink-3)}
+
+/* ---------- stage ---------- */
+main .wrap{padding-block:14px 26px}
+.stage{display:grid;gap:12px;align-items:stretch}
+.stage[data-layout="b"]{grid-template-columns:300px minmax(0,1fr) 352px;
+  grid-template-rows:auto auto minmax(340px,1fr) auto;
+  grid-template-areas:"rail kpi insp" "rail views insp" "rail canvas insp" "rail dl insp"}
+.stage[data-layout="c"]{grid-template-columns:minmax(0,1fr) 352px;
+  grid-template-rows:auto auto minmax(300px,1fr);
+  grid-template-areas:"busy kpi" "dl kpi" "table insp"}
+.stage[data-layout="b"] #p-grid,.stage[data-layout="b"] #p-busy,.stage[data-layout="b"] #p-table{grid-area:canvas}
+.stage[data-layout="b"][data-view="link"] #p-busy,.stage[data-layout="b"][data-view="link"] #p-table,
+.stage[data-layout="b"][data-view="shift"] #p-grid,.stage[data-layout="b"][data-view="shift"] #p-table,
+.stage[data-layout="b"][data-view="jobs"] #p-grid,.stage[data-layout="b"][data-view="jobs"] #p-busy,
+.stage[data-layout="b"][data-view="jobs"] #p-dl{display:none}
+.stage[data-layout="c"] #p-rail,.stage[data-layout="c"] #p-grid,.stage[data-layout="c"] #p-views{display:none}
+.views{grid-area:views;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.views-hint{font-size:13px;color:var(--ink-3)}
+@media (min-width:1181px){
+  .stage{height:calc(100dvh - 196px);min-height:560px}
+}
+@media (max-width:1180px){
+  .stage[data-layout="b"],.stage[data-layout="c"]{grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto;grid-template-areas:"kpi" "busy" "canvas" "dl" "rail" "table" "insp"}
+  .panel{max-height:min(78vh,640px)}
+}
+.panel{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.panel>header{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--hair)}
+.panel>header h3{font-size:14px;font-weight:600}
+.panel>header .sub{font-size:12px;color:var(--ink-3);font-family:var(--mono)}
+.panel>header .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.panel .body{padding:14px;overflow:auto;flex:1;min-height:0}
+.panel .body.flush{padding:0}
+#p-rail{grid-area:rail}#p-kpi{grid-area:kpi}#p-grid{grid-area:canvas}#p-dl{grid-area:dl}
+#p-busy{grid-area:busy}#p-table{grid-area:table}#p-insp{grid-area:insp}
+
+/* ---------- kpi ---------- */
+.kpi{display:grid;gap:1px;background:var(--hair);align-content:start}
+.stage[data-layout="b"] .kpi{grid-template-columns:repeat(5,minmax(0,1fr))}
+.stage[data-layout="c"] .kpi{grid-template-columns:1fr}
+@media (max-width:1180px){.stage .kpi{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
+.k-cell{background:var(--panel);padding:13px 14px 14px;display:flex;flex-direction:column;gap:2px}
+.k-cell .t{font-size:12px;color:var(--ink-3)}
+.k-cell .v{font-family:var(--mono);font-size:26px;font-weight:500;letter-spacing:-.03em;line-height:1.2}
+.k-cell .v small{font-size:13px;color:var(--ink-3);font-weight:400}
+.k-cell .d{font-size:12px;color:var(--ink-3);display:flex;gap:5px;align-items:baseline}
+.k-cell .d b{font-family:var(--mono);font-weight:500}
+.up{color:#3fce6a} .down{color:#e8736f} .flat{color:var(--ink-3)}
+
+/* ---------- rail ---------- */
+.rail-row{display:grid;grid-template-columns:44px minmax(58px,96px) 1fr;gap:12px;align-items:center;
+  padding:8px 12px;border-bottom:1px solid var(--hair);cursor:pointer;position:relative}
+.rail-row:hover{background:var(--panel-2)}
+.rail-row[aria-selected="true"]{background:var(--panel-2)}
+.rail-row[aria-selected="true"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent)}
+.rail-row .id{font-family:var(--mono);font-size:13px}
+.rail-row .soc{display:flex;align-items:center;gap:6px}
+.rail-row .soc .bar{position:relative;flex:1;height:3px;background:var(--idle);border-radius:2px}
+.rail-row .soc .bar i{position:absolute;top:0;bottom:0;left:0;border-radius:2px;background:var(--s1)}
+.rail-row .soc b{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--ink-2);min-width:28px;text-align:right}
+.rail-row canvas{display:block;width:100%;max-width:190px;height:20px}
+.rail-head{display:grid;grid-template-columns:44px minmax(58px,96px) 1fr;gap:12px;padding:8px 12px;border-bottom:1px solid var(--hair);
+  font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;position:sticky;top:0;background:var(--panel);z-index:2}
+
+/* ---------- tables ---------- */
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+thead th{position:sticky;top:0;background:var(--panel);z-index:2;text-align:left;font-size:10.5px;font-weight:500;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);padding:9px 12px;border-bottom:1px solid var(--hair);white-space:nowrap}
+td{padding:7px 12px;border-bottom:1px solid var(--td-line)}
+tbody tr{cursor:pointer;position:relative}
+tbody tr:hover td{background:var(--panel-2)}
+tbody tr[aria-selected="true"] td{background:var(--panel-2)}
+tbody tr[aria-selected="true"] td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+td.id{font-family:var(--mono);white-space:nowrap}
+.dot{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ink-3);flex:none}
+.dot.s1::before{background:var(--s1)} .dot.s2::before{background:var(--s2)} .dot.s3::before{background:var(--s3)}
+.dot.good::before{background:var(--good)} .dot.crit::before{background:var(--crit)}
+.dot.warn::before{background:var(--warn)} .dot.ser::before{background:var(--serious)}
+.dot.cert::before{background:none;border:1px solid var(--ink-2);width:7px;height:7px}
+.pill{background:var(--panel-2);border:1px solid var(--hair);border-radius:99px;padding:4px 12px;font-size:12.5px;color:var(--ink-2);cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--raised);color:var(--ink);border-color:var(--hair-2)}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--hair)}
+.note{padding:9px 12px;font-size:11px;color:var(--ink-3);border-top:1px solid var(--hair)}
+
+/* ---------- inspector ---------- */
+.insp{display:flex;flex-direction:column;gap:14px}
+.insp h4{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);margin-bottom:5px}
+.verdict{font-size:13.5px;line-height:1.5;padding:12px 13px;border-radius:var(--r-s);background:var(--panel-2);border-left:2px solid var(--crit);color:var(--ink-2)}
+.verdict.ok{border-left-color:var(--s1)}
+.verdict b{color:var(--ink);font-weight:500}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px}
+.kv dt{color:var(--ink-3)} .kv dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--ink-2)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.readout{font-family:var(--mono);font-size:12.5px;color:var(--ink-2)}
+.readout b{color:var(--ink);font-weight:500}
+.empty{color:var(--ink-3);font-size:12px;padding:16px 0;text-align:center}
+.tip{position:fixed;z-index:60;pointer-events:none;background:var(--raised);border:1px solid var(--hair-2);border-radius:var(--r-s);
+  padding:10px 12px;font-size:12.5px;display:none;min-width:150px;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.tip b{font-family:var(--mono);display:block;margin-bottom:5px;font-weight:500}
+.tip ul{margin:0;padding:0;list-style:none;display:grid;gap:3px}
+.tip li{display:flex;gap:8px;justify-content:space-between;align-items:center}
+.tip li i{width:8px;height:8px;border-radius:2px;flex:none}
+.tip li span{color:var(--ink-2);margin-right:auto} .tip li em{font-style:normal;font-family:var(--mono)}
+.mock{font-size:9.5px;color:var(--warn);border:1px solid rgba(250,178,25,.4);border-radius:4px;padding:1px 6px;letter-spacing:.05em}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="sigil" aria-hidden="true"></div>
+      <div class="nm"><b>Пульт наземной смены</b><span>Cosmostars · P02_shift</span></div>
+      <span class="mock">моки</span>
+    </div>
+    <div class="ctl"><label for="scn">Смена</label>
+      <select id="scn">
+        <option>P02_shift · 48 аппаратов · 1208 заданий</option>
+        <option>P01_intro · 2 аппарата · 16 заданий</option>
+        <option>P03_energy · дефицит энергии</option>
+        <option>P04_demand · 8120 заданий</option>
+      </select>
+    </div>
+    <div class="ctl"><label>Цель</label>
+      <div class="seg"><button id="goal-p" aria-pressed="true">Приоритет</button><button id="goal-r" aria-pressed="false">Выручка</button></div>
+    </div>
+    <div class="ctl"><label id="theme-lbl">Тема</label>
+      <div class="seg" role="group" aria-labelledby="theme-lbl">
+        <button id="th-aurora" aria-pressed="true">Аврора</button>
+        <button id="th-black" aria-pressed="false">Чёрный борт</button>
+      </div>
+    </div>
+    <div class="ctl"><label>Раскладка</label>
+      <div class="seg"><button id="lay-b" aria-pressed="true">B · станция</button><button id="lay-c" aria-pressed="false">C · обзор</button></div>
+    </div>
+    <div class="ctl" style="gap:12px">
+      <div class="clock"><b id="stepNum">137</b><i>/ 288</i><i id="stepClock">11:25</i></div>
+      <button class="btn" id="back1">−1</button>
+      <button class="btn key" id="fwd1">Шаг<kbd>→</kbd></button>
+      <button class="btn" id="fwd12">+12</button>
+      <button class="btn" id="fork">Ветвь</button>
+    </div>
+  </div>
+</header>
+
+<div class="axis">
+  <div class="wrap">
+    <div class="axis-head"><span>Сутки смены · шаг 5 минут</span><span id="hint">Тяните курсор — пересчитывается всё ниже</span></div>
+    <div class="track" id="track">
+      <canvas class="axis-hist" id="axisHist"></canvas>
+      <div class="track-bg"><div class="track-done" id="done"></div></div>
+      <input type="range" id="range" min="0" max="288" value="137" aria-label="Шаг смены">
+    </div>
+    <div class="hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+    <div class="stage" id="stage" data-layout="b">
+
+      <section class="panel" id="p-kpi">
+        <header><h3>Итог на шаге</h3><span class="sub" id="kpiStep">137</span>
+          <span class="right sub">против baseline-edf</span></header>
+        <div class="kpi" id="kpi"></div>
+      </section>
+
+      <section class="panel" id="p-rail">
+        <header><h3>Аппараты</h3><span class="sub">48</span>
+          <span class="right"><button class="pill" id="railIssues" aria-pressed="false">с проблемами</button></span></header>
+        <div class="body flush" style="overflow:auto">
+          <div class="rail-head"><span>апп.</span><span>заряд</span><span>работа по часам</span></div>
+          <div id="railRows"></div>
+        </div>
+      </section>
+
+      <div class="views" id="p-views">
+        <div class="seg" role="group" aria-label="Раздел рабочего места">
+          <button data-v="link" aria-pressed="true">Связь</button>
+          <button data-v="shift" aria-pressed="false">Смена</button>
+          <button data-v="jobs" aria-pressed="false">Задания</button>
+        </div>
+        <span class="views-hint" id="viewHint">Какие окна связи были у аппаратов и что в них ушло</span>
+      </div>
+
+      <section class="panel" id="p-grid">
+        <header><h3>Полотно смены</h3><span class="sub">48 × 288</span>
+          <span class="right">
+            <select id="gridSort" aria-label="Порядок строк">
+              <option value="windows">по окнам связи</option>
+              <option value="load">по загрузке</option>
+              <option value="id">по номеру</option>
+            </select>
+            <span class="legend">
+              <span><i style="background:rgba(43,165,184,.22)"></i>окно связи</span>
+              <span><i style="background:var(--s1)"></i>передача</span>
+              <span><i style="background:var(--s2)"></i>релей</span>
+              <span><i style="background:var(--s3)"></i>калибровка</span>
+            </span>
+          </span></header>
+        <div class="body" style="padding:10px 12px"><canvas id="grid"></canvas></div>
+        <div class="note"><span class="readout" id="gridRead">Наведите на клетку · клик — досчитать до шага</span></div>
+      </section>
+
+      <section class="panel" id="p-busy">
+        <header><h3>Занятость группировки</h3><span class="sub">аппаратов в работе из 48</span>
+          <span class="right legend">
+            <span><i style="background:var(--s1)"></i>связь</span>
+            <span><i style="background:var(--s2)"></i>релей</span>
+            <span><i style="background:var(--s3)"></i>калибровка</span>
+          </span></header>
+        <div class="body"><svg id="busy" role="img" aria-label="Занятость группировки по шагам смены"></svg></div>
+      </section>
+
+      <section class="panel" id="p-dl">
+        <header><h3>Наземная связь</h3><span class="sub">лимит 2 передачи на шаг</span>
+          <span class="right legend">
+            <span><i style="background:var(--s1)"></i>занято</span>
+            <span><i style="background:var(--s1-dim)"></i>в контакте</span>
+          </span></header>
+        <div class="body"><svg id="dl" role="img" aria-label="Использование окон наземной связи"></svg>
+          <div class="readout" id="dlRead" style="margin-top:6px"></div></div>
+      </section>
+
+      <section class="panel" id="p-table">
+        <header><h3 id="tblTitle">Задания</h3><span class="sub" id="tblCount"></span>
+          <span class="right"><div class="seg"><button id="tbl-j" aria-pressed="true">Задания</button><button id="tbl-s" aria-pressed="false">Аппараты</button></div></span></header>
+        <div class="filters" id="filters">
+          <button class="pill" data-f="all" aria-pressed="true">Все</button>
+          <button class="pill" data-f="done" aria-pressed="false">Выполнено</button>
+          <button class="pill" data-f="missed" aria-pressed="false">Просрочено</button>
+          <button class="pill" data-f="cert" aria-pressed="false">Невыполнимо · сертификат</button>
+          <button class="pill" data-f="p3" aria-pressed="false">Приоритет 3</button>
+        </div>
+        <div class="body flush" style="overflow:auto"><table id="tbl"></table></div>
+      </section>
+
+      <section class="panel" id="p-insp">
+        <header><h3 id="inspTitle">Разбор</h3><span class="sub" id="inspSub"></span></header>
+        <div class="body"><div class="insp" id="insp"></div></div>
+      </section>
+
+    </div>
+  </div>
+</main>
+<div class="tip" id="tip" role="status"></div>
+
+<script>
+(function(){
+'use strict';
+var STEPS=288, SATS=48, LIMIT=2, RESERVE=30, CRITICAL=15, CAL_VALID=96;
+var seed=20260922;
+function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+function sidOf(i){ return 'S'+String(i+1).padStart(2,'0'); }
+function hhmm(k){ var m=k*5,h=Math.floor(m/60)%24; return String(h).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+var $=function(s){ return document.querySelector(s); };
+
+/* ---------------- mock shift ---------------- */
+var sats=[], DL=[], RL=[];
+for(var i=0;i<SATS;i++){
+  var dl=new Uint8Array(STEPS), rl=new Uint8Array(STEPS);
+  for(var k=0;k<STEPS;k++) rl[k]=rnd()<0.99?1:0;
+  var passes=3+Math.floor(rnd()*2);
+  for(var p=0;p<passes;p++){
+    var st=Math.floor(rnd()*(STEPS-8)), len=2+Math.floor(rnd()*3);
+    for(var q=st;q<st+len;q++) dl[q]=1;
+  }
+  DL.push(dl); RL.push(rl);
+  sats.push({id:sidOf(i),soc:new Float32Array(STEPS),temp:new Float32Array(STEPS),act:new Uint8Array(STEPS),cal:new Uint16Array(STEPS)});
+}
+for(var k=96;k<144;k++) DL[16][k]=0;
+[100,108,116,124,132].forEach(function(k){ DL[16][k]=1; });
+var outages=[{s:6,a:150,b:174},{s:22,a:60,b:78}];
+outages.forEach(function(o){ for(var k=o.a;k<o.b;k++) sats[o.s].act[k]=4; });
+var usedDL=new Uint8Array(STEPS), inContact=new Uint8Array(STEPS);
+for(var k=0;k<STEPS;k++){
+  var cap=LIMIT;
+  for(var i=0;i<SATS;i++){
+    if(!DL[i][k]||sats[i].act[k]===4) continue;
+    inContact[k]++;
+    if(cap>0&&rnd()<0.92){ sats[i].act[k]=1; cap--; usedDL[k]++; }
+  }
+}
+for(var i=0;i<SATS;i++){
+  var target=30+Math.floor(rnd()*14), placed=0, guard=0;
+  while(placed<target&&guard++<400){
+    var st=Math.floor(rnd()*(STEPS-3)), len=1+Math.floor(rnd()*3), free=true;
+    for(var q=st;q<st+len;q++) if(sats[i].act[q]!==0||!RL[i][q]) free=false;
+    if(!free) continue;
+    for(var q=st;q<st+len;q++) sats[i].act[q]=2;
+    placed+=len;
+  }
+}
+for(var i=0;i<SATS;i++){
+  var age=Math.floor(rnd()*60);
+  for(var k=0;k<STEPS;k++){
+    age++;
+    if(age>=CAL_VALID-8&&sats[i].act[k]===0){ sats[i].act[k]=3; age=0; }
+    sats[i].cal[k]=age;
+  }
+}
+for(var i=0;i<SATS;i++){
+  var s=sats[i], soc=58+rnd()*30, t=12+rnd()*8, ph=rnd()*6.28;
+  for(var k=0;k<STEPS;k++){
+    var sun=Math.max(0,Math.sin(ph+k*0.39));
+    var load=s.act[k]===1?2.6:s.act[k]===2?1.9:s.act[k]===3?1.6:s.act[k]===4?0.6:1.0;
+    soc+=sun*3.4-load; if(soc>100)soc=100; if(soc<8)soc=8;
+    t+=(s.act[k]&&s.act[k]!==4?0.9:-0.18)+(sun-0.5)*0.5; if(t>42)t=42; if(t<2)t=2;
+    s.soc[k]=soc; s.temp[k]=t;
+  }
+}
+var unavail=new Uint8Array(STEPS);
+for(var k=0;k<STEPS;k++){ var n=0; for(var i=0;i<SATS;i++) if(sats[i].act[k]===4)n++; unavail[k]=n; }
+
+/* ---------------- mock jobs ---------------- */
+var TOTAL=1208, DOWNLINK=344, WCERT=38, GCERT=6, CRIT_TOTAL=334, CRIT_MISS=19;
+var jobs=[];
+function slotsIn(si,a,b){ var n=0; for(var k=a;k<b;k++) if(DL[si][k])n++; return n; }
+for(var j=0;j<TOTAL-GCERT;j++){
+  var kind=j<DOWNLINK-GCERT?'downlink':'relay', work=1+Math.floor(rnd()*3);
+  var si=Math.floor(rnd()*SATS); if(si===16) si=17;
+  var rel=Math.floor(rnd()*(STEPS-18)), dead=Math.min(STEPS,rel+work+1+Math.floor(rnd()*14)), g=0;
+  if(kind==='downlink') while(slotsIn(si,rel,dead)<work&&dead<STEPS&&g++<STEPS) dead++;
+  jobs.push({id:'',kind:kind,work:work,rel:rel,dead:dead,pr:1,si:si,sat:sidOf(si),val:8+rnd()*54,done:null,cert:null});
+}
+var groupInfo={sat:'S17',from:96,to:144,count:GCERT,work:8,contacts:5};
+[2,2,1,1,1,1].forEach(function(w,n){
+  jobs.push({id:'',kind:'downlink',work:w,rel:96+n*2,dead:144,pr:1,si:16,sat:'S17',val:18+rnd()*30,done:null,cert:{type:'group',group:groupInfo}});
+});
+jobs.sort(function(a,b){ return a.dead-b.dead||a.rel-b.rel; });
+jobs.forEach(function(j,n){ j.id='JOB-'+String(n+1).padStart(4,'0'); });
+var made=0;
+for(var n=0;n<jobs.length&&made<WCERT;n++){
+  var job=jobs[n];
+  if(job.kind!=='downlink'||job.cert||job.dead-job.rel<3) continue;
+  var d=job.dead;
+  while(d>job.rel+job.work&&slotsIn(job.si,job.rel,d)>=job.work) d--;
+  if(slotsIn(job.si,job.rel,d)<job.work){ job.dead=d; job.cert={type:'window',slots:slotsIn(job.si,job.rel,d)}; made++; }
+}
+var certJobs=jobs.filter(function(j){return j.cert;}), plain=jobs.filter(function(j){return !j.cert;});
+certJobs.forEach(function(j,n){ j.pr=n<CRIT_MISS?3:(rnd()<0.5?1:2); });
+plain.forEach(function(j,n){ j.pr=n<CRIT_TOTAL-CRIT_MISS?3:(rnd()<0.5?1:2); });
+for(var n=plain.length-1;n>0;n--){ var m=Math.floor(rnd()*(n+1)), t=plain[n].pr; plain[n].pr=plain[m].pr; plain[m].pr=t; }
+var vs=0;
+jobs.forEach(function(j){
+  if(j.cert) return;
+  var span=Math.max(1,j.dead-j.rel-j.work);
+  j.done=Math.min(j.dead-1,j.rel+j.work+Math.floor(rnd()*span)); vs+=j.val;
+});
+var sc=27407/vs;
+jobs.forEach(function(j){ j.val=Math.round(j.val*sc*100)/100; });
+var cum=[];
+(function(){
+  var byDone=jobs.filter(function(j){return j.done!==null;}).sort(function(a,b){return a.done-b.done;});
+  var byDead=jobs.filter(function(j){return j.cert;}).sort(function(a,b){return a.dead-b.dead;});
+  var due=jobs.filter(function(j){return j.pr===3;}).sort(function(a,b){return a.dead-b.dead;});
+  var d=0,r=0,p=0,m=0,q=0,i1=0,i2=0,i3=0;
+  for(var k=0;k<=STEPS;k++){
+    while(i1<byDone.length&&byDone[i1].done<=k){ d++; r+=byDone[i1].val; if(byDone[i1].pr===3)p++; i1++; }
+    while(i2<byDead.length&&byDead[i2].dead<=k){ m++; i2++; }
+    while(i3<due.length&&due[i3].dead<=k){ q++; i3++; }
+    cum.push({done:d,rev:r,p3:p,miss:m,due:q});
+  }
+})();
+
+/* ---------------- state ---------------- */
+var step=137, layout='b', view='link', selSat=16, selJob=null, sel='sat', tblMode='jobs', filter='all', railIssues=false, gridSort='windows';
+var VIEW_HINT={link:'Какие окна связи были у аппаратов и что в них ушло',
+  shift:'Сколько аппаратов занято на каждом шаге и чем именно',
+  jobs:'Список заданий: статус, срок и доказательство по каждому'};
+var ACT=['--idle','--s1','--s2','--s3','--off'];
+var ACT_NAME=['простой','наземная связь','ретрансляция','калибровка','недоступен'];
+function cssv(n){ return getComputedStyle(document.body).getPropertyValue(n).trim()||'#888'; }
+var tip=$('#tip');
+function showTip(x,y,h){ tip.innerHTML=h; tip.style.display='block'; var r=tip.getBoundingClientRect();
+  tip.style.left=Math.max(8,Math.min(x+14,innerWidth-r.width-8))+'px';
+  tip.style.top=Math.max(8,Math.min(y+14,innerHeight-r.height-8))+'px'; }
+function hideTip(){ tip.style.display='none'; }
+function money(v){ return Math.round(v).toLocaleString('ru-RU'); }
+function W(el){ return Math.max(360,el.parentNode.clientWidth-2); }
+
+/* ---------------- kpi ---------------- */
+function renderKpi(){
+  var c=cum[step], b={done:Math.round(c.done*.977),p3:Math.round(c.p3*.962),rev:c.rev*.986,miss:Math.round(c.miss*1.61)};
+  var items=[
+    {t:'Завершено',v:c.done,s:' / '+TOTAL,d:c.done-b.done,dir:1},
+    {t:'Приоритет 3 в срок',v:c.p3,s:' / '+Math.max(c.p3,c.due),d:c.p3-b.p3,dir:1},
+    {t:'Выручка, $',v:money(c.rev),s:'',d:Math.round(c.rev-b.rev),dir:1,m:1},
+    {t:'Просрочено',v:c.miss,s:'',d:c.miss-b.miss,dir:-1,note:'все с сертификатом'},
+    {t:'Работа впустую',v:0,s:' шагов',d:0,dir:-1}
+  ];
+  $('#kpiStep').textContent='шаг '+step;
+  $('#kpi').innerHTML=items.map(function(x){
+    var cls=x.d===0?'flat':((x.d>0)===(x.dir>0)?'up':'down');
+    var sg=x.d>0?'+':(x.d<0?'−':'±'), v=x.d===0?'0':(x.m?money(Math.abs(x.d)):Math.abs(x.d));
+    return '<div class="k-cell"><span class="t">'+x.t+'</span><span class="v">'+x.v+'<small>'+x.s+'</small></span>'+
+      '<span class="d"><b class="'+cls+'">'+sg+v+'</b>'+(x.note||'')+'</span></div>';
+  }).join('');
+}
+
+/* ---------------- busy chart ---------------- */
+function renderBusy(){
+  var el=$('#busy'); if(!el.parentNode.clientWidth) return;
+  var w=W(el), H=176, pl=28, pr=8, pt=8, pb=40, iw=w-pl-pr, ih=H-pt-pb, max=4, rows=[];
+  for(var k=0;k<STEPS;k++){
+    var r=[0,0,0]; for(var i=0;i<SATS;i++){ var a=sats[i].act[k]; if(a>=1&&a<=3) r[a-1]++; }
+    rows.push(r); var s=r[0]+r[1]+r[2]; if(s>max) max=s;
+  }
+  max=Math.ceil(max/4)*4;
+  var xs=function(k){ return pl+k/STEPS*iw; }, ys=function(v){ return pt+ih-v/max*ih; };
+  var out='';
+  for(var g=0;g<=4;g++){ var v=max*g/4;
+    out+='<line x1="'+pl+'" y1="'+ys(v)+'" x2="'+(w-pr)+'" y2="'+ys(v)+'" stroke="var(--gridline)"/>'+
+      '<text x="'+(pl-5)+'" y="'+(ys(v)+3.5)+'" text-anchor="end" fill="'+cssv('--ink-3')+'" font-size="10.5" font-family="var(--mono)">'+v+'</text>'; }
+  var base=new Float32Array(STEPS);
+  [1,2,3].forEach(function(a,bi){
+    var d='', top=new Float32Array(STEPS);
+    for(var k=0;k<STEPS;k++) top[k]=base[k]+rows[k][bi];
+    for(var k=0;k<STEPS;k++) d+=(k?'L':'M')+xs(k)+' '+ys(top[k])+'L'+xs(k+1)+' '+ys(top[k]);
+    for(var k=STEPS-1;k>=0;k--) d+='L'+xs(k+1)+' '+ys(base[k])+'L'+xs(k)+' '+ys(base[k]);
+    out+='<path d="'+d+'Z" fill="var('+ACT[a]+')" fill-opacity=".92" stroke="var(--panel)" stroke-width=".5"/>';
+    base=top;
+  });
+  var sy=pt+ih+14;
+  out+='<text x="'+pl+'" y="'+(sy-3)+'" fill="'+cssv('--ink-3')+'" font-size="8.5" font-family="var(--mono)">НЕДОСТУПНОСТЬ</text>'+
+    '<rect x="'+pl+'" y="'+sy+'" width="'+iw+'" height="6" rx="2" fill="var(--idle)"/>';
+  for(var k=0;k<STEPS;k++) if(unavail[k]) out+='<rect x="'+xs(k)+'" y="'+sy+'" width="'+Math.max(1.2,iw/STEPS)+'" height="6" fill="var(--crit)"/>';
+  for(var h=0;h<=24;h+=3) out+='<text x="'+xs(h*12)+'" y="'+(H-4)+'" text-anchor="middle" fill="'+cssv('--ink-3')+'" font-size="9" font-family="var(--mono)">'+String(h).padStart(2,'0')+'</text>';
+  out+='<line x1="'+xs(step)+'" y1="'+pt+'" x2="'+xs(step)+'" y2="'+(pt+ih)+'" stroke="'+cssv('--ink')+'" stroke-width="1.2"/>';
+  el.setAttribute('viewBox','0 0 '+w+' '+H); el.setAttribute('width','100%'); el.setAttribute('height',H);
+  el.innerHTML=out;
+  el.onmousemove=function(e){
+    var r=el.getBoundingClientRect(), k=Math.round(((e.clientX-r.left)/r.width*w-pl)/iw*STEPS);
+    k=Math.max(0,Math.min(STEPS-1,k)); var q=rows[k];
+    showTip(e.clientX,e.clientY,'<b>шаг '+k+' · '+hhmm(k)+'</b><ul>'+
+      [1,2,3].map(function(a,bi){ return '<li><i style="background:var('+ACT[a]+')"></i><span>'+ACT_NAME[a]+'</span><em>'+q[bi]+'</em></li>'; }).join('')+
+      '<li><i style="background:var(--idle)"></i><span>простой</span><em>'+(SATS-q[0]-q[1]-q[2]-unavail[k])+'</em></li></ul>');
+  };
+  el.onmouseleave=hideTip;
+}
+
+/* ---------------- downlink chart ---------------- */
+function renderDl(){
+  var el=$('#dl'); if(!el.parentNode.clientWidth) return;
+  var w=W(el), H=116, pl=28, pr=8, pt=8, pb=20, iw=w-pl-pr, ih=H-pt-pb, max=0;
+  for(var k=0;k<STEPS;k++) if(inContact[k]>max) max=inContact[k];
+  max=Math.max(3,max);
+  var xs=function(k){ return pl+k/STEPS*iw; }, ys=function(v){ return pt+ih-v/max*ih; };
+  var out='';
+  for(var v=0;v<=max;v++) out+='<line x1="'+pl+'" y1="'+ys(v)+'" x2="'+(w-pr)+'" y2="'+ys(v)+'" stroke="var(--gridline)"/>'+
+    '<text x="'+(pl-5)+'" y="'+(ys(v)+3.5)+'" text-anchor="end" fill="'+cssv('--ink-3')+'" font-size="9" font-family="var(--mono)">'+v+'</text>';
+  var d='M'+xs(0)+' '+ys(0);
+  for(var k=0;k<STEPS;k++) d+='L'+xs(k)+' '+ys(inContact[k])+'L'+xs(k+1)+' '+ys(inContact[k]);
+  d+='L'+xs(STEPS)+' '+ys(0)+'Z';
+  out+='<path d="'+d+'" fill="var(--s1-dim)"/>';
+  var bw=Math.max(1.3,iw/STEPS-0.8);
+  for(var k=0;k<STEPS;k++) if(usedDL[k]) out+='<rect x="'+(xs(k)+0.4)+'" y="'+ys(usedDL[k])+'" width="'+bw+'" height="'+(ys(0)-ys(usedDL[k]))+'" rx="1" fill="var(--s1)"/>';
+  out+='<line x1="'+pl+'" y1="'+ys(LIMIT)+'" x2="'+(w-pr)+'" y2="'+ys(LIMIT)+'" stroke="var(--crit)" stroke-width="1.2" stroke-dasharray="4 4"/>'+
+    '<text x="'+(w-pr-3)+'" y="'+(ys(LIMIT)-4)+'" text-anchor="end" fill="var(--crit)" font-size="9">лимит 2</text>'+
+    '<line x1="'+xs(step)+'" y1="'+pt+'" x2="'+xs(step)+'" y2="'+(pt+ih)+'" stroke="'+cssv('--ink')+'" stroke-width="1.2"/>';
+  for(var h=0;h<=24;h+=6) out+='<text x="'+xs(h*12)+'" y="'+(H-4)+'" text-anchor="middle" fill="'+cssv('--ink-3')+'" font-size="9" font-family="var(--mono)">'+String(h).padStart(2,'0')+':00</text>';
+  el.setAttribute('viewBox','0 0 '+w+' '+H); el.setAttribute('width','100%'); el.setAttribute('height',H);
+  el.innerHTML=out;
+  var tot=0,cap=0,cs=0;
+  for(var k=0;k<STEPS;k++){ tot+=usedDL[k]; cap+=Math.min(LIMIT,inContact[k]); cs+=inContact[k]; }
+  $('#dlRead').innerHTML='слотов за смену <b>'+cs+'</b> · доступно по лимиту <b>'+cap+'</b> · занято <b>'+tot+'</b> · свободно <b>'+(cap-tot)+'</b>';
+  el.onmousemove=function(e){
+    var r=el.getBoundingClientRect(), k=Math.round(((e.clientX-r.left)/r.width*w-pl)/iw*STEPS);
+    k=Math.max(0,Math.min(STEPS-1,k));
+    showTip(e.clientX,e.clientY,'<b>шаг '+k+' · '+hhmm(k)+'</b><ul><li><i style="background:var(--s1)"></i><span>занято</span><em>'+usedDL[k]+' / 2</em></li>'+
+      '<li><i style="background:var(--s1-dim)"></i><span>в контакте</span><em>'+inContact[k]+'</em></li></ul>');
+  };
+  el.onmouseleave=hideTip;
+}
+
+/* ---------------- rail ---------------- */
+function issue(s){ return s.soc[step]<RESERVE||s.temp[step]>38||s.cal[step]>=CAL_VALID||s.act[step]===4; }
+function renderRail(){
+  var html='';
+  sats.forEach(function(s,i){
+    if(railIssues&&!issue(s)) return;
+    var soc=s.soc[step], c=soc<CRITICAL?'--crit':soc<RESERVE?'--warn':'--s1';
+    html+='<div class="rail-row" data-i="'+i+'" aria-selected="'+(sel==='sat'&&i===selSat)+'">'+
+      '<span class="id">'+s.id+'</span>'+
+      '<span class="soc"><span class="bar"><i style="width:'+soc.toFixed(0)+'%;background:var('+c+')"></i></span><b>'+soc.toFixed(0)+'</b></span>'+
+      '<canvas data-strip="'+i+'"></canvas></div>';
+  });
+  $('#railRows').innerHTML=html||'<div class="empty">Ни один аппарат не подходит</div>';
+  document.querySelectorAll('canvas[data-strip]').forEach(function(c){ strip(c,+c.dataset.strip); });
+}
+/* Часовая сводка дня: 24 столбика вместо 288 нечитаемых штрихов. */
+function strip(cv,i){
+  var cssW=cv.clientWidth||140, H=20, dpr=Math.min(2,devicePixelRatio||1);
+  cv.width=Math.round(cssW*dpr); cv.height=Math.round(H*dpr);
+  var g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,cssW,H);
+  var s=sats[i], bw=cssW/24, cols=ACT.map(cssv), curHour=step/12;
+  for(var h=0;h<24;h++){
+    var busy=0,dlk=0,rel=0,cal=0,win=0;
+    for(var k=h*12;k<h*12+12;k++){
+      if(DL[i][k]) win++;
+      var a=s.act[k];
+      if(a>=1&&a<=3) busy++;
+      if(a===1) dlk++; else if(a===2) rel++; else if(a===3) cal++;
+    }
+    var x=h*bw, bwv=Math.max(1.5,bw-1);
+    if(win){ g.fillStyle=cssv('--s1'); g.globalAlpha=.5; g.fillRect(x,H-2,bwv,2); g.globalAlpha=1; }
+    if(!busy) continue;
+    var hh=Math.max(2,busy/12*(H-4));
+    g.globalAlpha=h>curHour?0.36:1;
+    g.fillStyle=cols[dlk?1:rel?2:3]; g.fillRect(x,H-3-hh,bwv,hh);
+    g.globalAlpha=1;
+  }
+  g.fillStyle=cssv('--ink'); g.fillRect(step/STEPS*cssW,0,1,H);
+}
+
+/* ---------------- grid ---------------- */
+var satStats=sats.map(function(s,i){
+  var win=slotsIn(i,0,STEPS), sent=0, work=0;
+  for(var k=0;k<STEPS;k++){ if(s.act[k]===1) sent++; if(s.act[k]>=1&&s.act[k]<=3) work++; }
+  return {win:win,sent:sent,work:work};
+});
+var gridOrder=[];
+function orderRows(){
+  var idx=sats.map(function(_,i){ return i; });
+  if(gridSort==='load') return idx.sort(function(a,b){ return satStats[b].work-satStats[a].work||a-b; });
+  if(gridSort==='windows') return idx.sort(function(a,b){ return satStats[b].win-satStats[a].win||a-b; });
+  return idx;
+}
+/* Слои: окно связи — фон, передача — полная клетка, релей — тихий штрих, калибровка — засечка.
+   Иначе 48 × 288 читается как шум: работой занято всего 15% клеток. */
+function renderGrid(){
+  var cv=$('#grid'); if(!cv.parentNode.clientWidth) return;
+  var avail=cv.parentNode.clientWidth-42, lab=42, right=76;
+  var cw=Math.max(1.5,Math.min(6,(avail-lab-right)/STEPS));
+  var ch=15, gap=4, top=26, w=lab+STEPS*cw+right, H=top+SATS*(ch+gap), dpr=Math.min(2,devicePixelRatio||1);
+  cv.width=Math.round(w*dpr); cv.height=Math.round(H*dpr);
+  cv.style.width=w+'px'; cv.style.height=H+'px';
+  var g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,H);
+  var cols=ACT.map(cssv), ink3=cssv('--ink-3'), ink=cssv('--ink'), ink2=cssv('--ink-2');
+  gridOrder=orderRows();
+  g.font='10px '+cssv('--mono'); g.textBaseline='middle';
+  g.fillStyle=ink3;
+  for(var h=0;h<24;h+=3){ var x=lab+h*12*cw; g.fillText(String(h).padStart(2,'0')+':00',x+2,10); }
+  g.fillText('окна / связь',lab+STEPS*cw+6,10);
+  for(var r=0;r<SATS;r++){
+    var i=gridOrder[r], y=top+r*(ch+gap), s=sats[i], on=(sel==='sat'&&i===selSat);
+    if(on){ g.fillStyle=cssv('--row-sel'); g.fillRect(0,y-1,w,ch+2); }
+    for(var k=0;k<STEPS;k++) if(DL[i][k]){ g.fillStyle=cssv('--win'); g.fillRect(lab+k*cw,y,cw,ch); }
+    for(var k=0;k<STEPS;k++){
+      var a=s.act[k]; if(!a) continue;
+      var x=lab+k*cw, future=k>step;
+      if(a===2){ g.globalAlpha=future?0.22:0.5; g.fillStyle=cols[2]; g.fillRect(x,y+5,cw,5); }
+      else if(a===3){ g.globalAlpha=future?0.3:0.85; g.fillStyle=cols[3]; g.fillRect(x,y+ch-4,cw,4); }
+      else if(a===1){ g.globalAlpha=future?0.42:1; g.fillStyle=cols[1]; g.fillRect(x,y,cw,ch); }
+      else { g.globalAlpha=future?0.3:0.7; g.fillStyle=cols[4]; g.fillRect(x,y+4,cw,3); }
+      g.globalAlpha=1;
+    }
+    g.fillStyle=on?ink:ink3; g.fillText(s.id,0,y+ch/2);
+    g.fillStyle=ink3; g.fillText(satStats[i].win+' / ',lab+STEPS*cw+6,y+ch/2);
+    g.fillStyle=ink2; g.fillText(String(satStats[i].sent),lab+STEPS*cw+6+g.measureText(satStats[i].win+' / ').width,y+ch/2);
+  }
+  g.fillStyle=cssv('--gridline');
+  for(var h=3;h<24;h+=3) g.fillRect(lab+h*12*cw,top-6,1,SATS*(ch+gap));
+  g.fillStyle=ink; g.fillRect(lab+step*cw,top-6,1,SATS*(ch+gap));
+  function at(e){
+    var r=cv.getBoundingClientRect();
+    return {k:Math.floor((e.clientX-r.left-lab)/cw),row:Math.floor((e.clientY-r.top-top)/(ch+gap))};
+  }
+  cv.onmousemove=function(e){
+    var p=at(e);
+    if(p.k<0||p.k>=STEPS||p.row<0||p.row>=SATS){ $('#gridRead').textContent='Наведите на клетку · клик — досчитать до шага'; return; }
+    var i=gridOrder[p.row], s=sats[i], a=s.act[p.k];
+    $('#gridRead').innerHTML='<b>'+s.id+'</b> · '+hhmm(p.k)+' · шаг '+p.k+' · <b>'+ACT_NAME[a]+'</b> · '+
+      (DL[i][p.k]?'в зоне контакта':'связь недоступна')+' · заряд '+s.soc[p.k].toFixed(0)+'% · '+(p.k>step?'план':'факт');
+  };
+  cv.onclick=function(e){
+    var p=at(e);
+    if(p.row>=0&&p.row<SATS){ selSat=gridOrder[p.row]; sel='sat'; }
+    if(p.k>=0&&p.k<=STEPS) setStep(p.k); else render();
+  };
+}
+
+/* ---------------- table ---------------- */
+function jobStatus(j){
+  if(j.cert) return {c:'cert',t:'невыполнимо'};
+  if(j.done!==null&&j.done<=step) return {c:'good',t:'выполнено'};
+  if(j.dead<=step) return {c:'crit',t:'просрочено'};
+  if(j.rel>step) return {c:'',t:'не выпущено'};
+  return {c:'warn',t:'в работе'};
+}
+function renderTable(){
+  var t=$('#tbl');
+  if(tblMode==='sats'){
+    $('#tblTitle').textContent='Аппараты'; $('#filters').style.display='none';
+    var rows=sats.map(function(s,i){
+      var soc=s.soc[step], a=s.act[step];
+      return '<tr data-i="'+i+'" aria-selected="'+(sel==='sat'&&i===selSat)+'"><td class="id">'+s.id+'</td>'+
+        '<td class="num">'+soc.toFixed(0)+'%</td><td class="num">'+s.temp[step].toFixed(1)+'</td>'+
+        '<td class="num">'+s.cal[step]+'</td><td><span class="dot '+(a===4?'crit':a===1?'s1':a===2?'s2':a===3?'s3':'')+'">'+ACT_NAME[a]+'</span></td></tr>';
+    }).join('');
+    t.innerHTML='<thead><tr><th>Аппарат</th><th class="num">Заряд</th><th class="num">Темп.</th><th class="num">Калибр.</th><th>Сейчас</th></tr></thead><tbody>'+rows+'</tbody>';
+    $('#tblCount').textContent=SATS+' аппаратов';
+    return;
+  }
+  $('#tblTitle').textContent='Задания'; $('#filters').style.display='';
+  var list=jobs.filter(function(j){
+    var s=jobStatus(j);
+    if(filter==='done') return s.c==='good';
+    if(filter==='missed') return s.c==='crit'||s.c==='cert';
+    if(filter==='cert') return !!j.cert;
+    if(filter==='p3') return j.pr===3;
+    return true;
+  });
+  var shown=list.slice(0,60);
+  if(selJob===null&&shown.length){
+    var f=shown.filter(function(j){return j.cert&&j.cert.group;})[0]||shown.filter(function(j){return j.cert;})[0]||shown[0];
+    selJob=jobs.indexOf(f);
+  }
+  t.innerHTML='<thead><tr><th>Задание</th><th>Апп.</th><th>Тип</th><th class="num">П</th><th class="num">$</th><th class="num">Окно</th><th class="num">Работа</th><th>Статус</th></tr></thead><tbody>'+
+    (shown.map(function(j){
+      var s=jobStatus(j), i=jobs.indexOf(j);
+      return '<tr data-j="'+i+'" aria-selected="'+(sel==='job'&&i===selJob)+'"><td class="id">'+j.id+'</td><td class="id">'+j.sat+'</td>'+
+        '<td><span class="dot '+(j.kind==='downlink'?'s1':'s2')+'">'+(j.kind==='downlink'?'связь':'релей')+'</span></td>'+
+        '<td class="num">'+j.pr+'</td><td class="num">'+j.val.toFixed(2)+'</td><td class="num">'+j.rel+'–'+j.dead+'</td>'+
+        '<td class="num">'+j.work+'</td><td><span class="dot '+s.c+'">'+s.t+'</span></td></tr>';
+    }).join('')||'<tr><td colspan="8" class="empty">Нет заданий под фильтр</td></tr>')+'</tbody>';
+  $('#tblCount').textContent=shown.length+' из '+list.length;
+}
+
+/* ---------------- inspector ---------------- */
+function mini(title,vals,lo,hi,bands,limit){
+  var w=272,H=88,pl=24,pr=6,pt=8,pb=14,iw=w-pl-pr,ih=H-pt-pb;
+  var xs=function(k){ return pl+k/STEPS*iw; }, ys=function(v){ return pt+ih-(v-lo)/(hi-lo)*ih; };
+  var out='';
+  (bands||[]).forEach(function(b){
+    out+='<rect x="'+pl+'" y="'+ys(b.to)+'" width="'+iw+'" height="'+Math.max(0,ys(b.from)-ys(b.to))+'" fill="'+b.fill+'"/>'+
+      '<line x1="'+pl+'" y1="'+ys(b.to)+'" x2="'+(w-pr)+'" y2="'+ys(b.to)+'" stroke="'+b.line+'" stroke-dasharray="3 3"/>'+
+      '<text x="'+(pl-4)+'" y="'+(ys(b.to)+3)+'" text-anchor="end" font-size="8" font-family="var(--mono)" fill="'+cssv('--ink-3')+'">'+b.to+'</text>';
+  });
+  if(limit!==undefined) out+='<line x1="'+pl+'" y1="'+ys(limit)+'" x2="'+(w-pr)+'" y2="'+ys(limit)+'" stroke="var(--crit)" stroke-dasharray="3 3"/>'+
+    '<text x="'+(pl-4)+'" y="'+(ys(limit)+3)+'" text-anchor="end" font-size="8" font-family="var(--mono)" fill="'+cssv('--ink-3')+'">'+limit+'</text>';
+  out+='<text x="'+(pl-4)+'" y="'+(ys(hi)+7)+'" text-anchor="end" font-size="8" font-family="var(--mono)" fill="'+cssv('--ink-3')+'">'+hi+'</text>';
+  var d='';
+  for(var k=0;k<STEPS;k++) d+=(k?'L':'M')+xs(k)+' '+ys(Math.max(lo,Math.min(hi,vals[k])));
+  out+='<path d="'+d+'" fill="none" stroke="var(--s1)" stroke-width="1.6"/>'+
+    '<line x1="'+xs(step)+'" y1="'+pt+'" x2="'+xs(step)+'" y2="'+(pt+ih)+'" stroke="'+cssv('--ink')+'" stroke-width="1"/>'+
+    '<circle cx="'+xs(step)+'" cy="'+ys(Math.max(lo,Math.min(hi,vals[step])))+'" r="3" fill="var(--s1)" stroke="var(--panel)" stroke-width="1.5"/>';
+  return '<div><h4>'+title+'</h4><svg viewBox="0 0 '+w+' '+H+'" width="100%" height="'+H+'" role="img" aria-label="'+title+'">'+out+'</svg></div>';
+}
+function renderInsp(){
+  var el=$('#insp');
+  if(sel==='sat'){
+    var s=sats[selSat], slots=0;
+    for(var k=step;k<STEPS;k++) if(DL[selSat][k]) slots++;
+    $('#inspTitle').textContent='Аппарат '+s.id;
+    $('#inspSub').textContent=ACT_NAME[s.act[step]];
+    el.innerHTML=mini('Заряд, % · резерв 30 · критический 15',s.soc,0,100,
+        [{from:0,to:RESERVE,fill:'rgba(250,178,25,.10)',line:'var(--warn)'},{from:0,to:CRITICAL,fill:'rgba(208,59,59,.14)',line:'var(--crit)'}])+
+      mini('Температура, °C · предел 40',s.temp,0,45,null,40)+
+      '<dl class="kv"><dt>заряд</dt><dd>'+s.soc[step].toFixed(1)+' %</dd>'+
+      '<dt>температура</dt><dd>'+s.temp[step].toFixed(1)+' °C</dd>'+
+      '<dt>калибровка истекает</dt><dd>через '+Math.max(0,CAL_VALID-s.cal[step])+' шагов</dd>'+
+      '<dt>слотов связи впереди</dt><dd>'+slots+'</dd>'+
+      '<dt>окон связи за смену</dt><dd>'+slotsIn(selSat,0,STEPS)+'</dd></dl>';
+    return;
+  }
+  if(selJob===null){ el.innerHTML='<p class="empty">Выберите задание</p>'; return; }
+  var j=jobs[selJob], w=272,H=92,pl=6,pr=6,pt=20,iw=w-pl-pr;
+  var span=Math.max(1,j.dead-j.rel), cw=iw/span, xs=function(k){ return pl+(k-j.rel)*cw; };
+  var slots=[];
+  for(var k=j.rel;k<j.dead;k++) if(DL[j.si][k]) slots.push(k);
+  var out='<text x="'+pl+'" y="11" font-size="8.5" font-family="var(--mono)" fill="'+cssv('--ink-3')+'">окно '+j.rel+'</text>'+
+    '<text x="'+(w-pr)+'" y="11" text-anchor="end" font-size="8.5" font-family="var(--mono)" fill="'+cssv('--ink-3')+'">'+j.dead+'</text>'+
+    '<rect x="'+pl+'" y="'+pt+'" width="'+iw+'" height="22" rx="2" fill="var(--idle)"/>';
+  slots.forEach(function(k){ out+='<rect x="'+(xs(k)+0.5)+'" y="'+pt+'" width="'+Math.max(2,cw-1)+'" height="22" rx="1" fill="var(--s1)"/>'; });
+  if(j.done!==null) out+='<circle cx="'+xs(j.done)+'" cy="'+(pt+11)+'" r="3.5" fill="'+cssv('--good')+'" stroke="var(--panel)" stroke-width="1.5"/>';
+  out+='<text x="'+pl+'" y="'+(pt+38)+'" font-size="8.5" fill="'+cssv('--ink-3')+'">требуется работы</text>';
+  for(var q=0;q<j.work;q++) out+='<rect x="'+(pl+q*14)+'" y="'+(pt+44)+'" width="12" height="12" rx="2" fill="var(--s2)"/>';
+  out+='<text x="'+(pl+j.work*14+6)+'" y="'+(pt+53)+'" font-size="8.5" font-family="var(--mono)" fill="'+cssv('--ink-3')+'">'+j.work+' шаг(а)</text>';
+  var v, cls='';
+  if(j.cert&&j.cert.group){
+    var g=j.cert.group;
+    v='<b>Групповой сертификат (Холл).</b> Окна '+g.count+' заданий аппарата '+g.sat+' лежат внутри интервала '+g.from+'–'+g.to+'. По отдельности каждое выполнимо, но работы '+g.work+' шагов при '+g.contacts+' контактах: минимум '+(g.work-g.contacts)+' шага не обслужит ни один планировщик.';
+  } else if(j.cert){
+    v='<b>Сертификат по окну.</b> В пересечении окна с контактами '+j.sat+' всего '+slots.length+' слот(ов) при потребности '+j.work+'. Ни одна последовательность действий задание не закрывает.';
+  } else if(j.done!==null&&j.done<=step){
+    v='Закрыто на шаге '+j.done+' ('+hhmm(j.done)+'). В окне было '+slots.length+' слотов при потребности '+j.work+'.'; cls='ok';
+  } else {
+    v='В окне '+slots.length+' слотов при потребности '+j.work+'. Запас до срока '+(j.dead-step-j.work)+' шагов.'; cls='ok';
+  }
+  $('#inspTitle').textContent=j.id;
+  $('#inspSub').textContent=j.sat+' · '+(j.kind==='downlink'?'связь':'релей');
+  el.innerHTML='<div><h4>Окно против расписания контактов</h4><svg viewBox="0 0 '+w+' '+H+'" width="100%" height="'+H+'" role="img" aria-label="Разбор '+j.id+'">'+out+'</svg></div>'+
+    '<div class="legend"><span><i style="background:var(--s1)"></i>слотов в окне: '+slots.length+'</span><span><i style="background:var(--s2)"></i>работы: '+j.work+'</span></div>'+
+    '<div class="verdict '+cls+'">'+v+'</div>'+
+    '<dl class="kv"><dt>приоритет</dt><dd>'+j.pr+'</dd><dt>стоимость</dt><dd>'+j.val.toFixed(2)+' $</dd>'+
+    '<dt>сертификат</dt><dd>'+(j.cert?(j.cert.group?'group':'window'):'—')+'</dd></dl>';
+}
+
+/* ---------------- events ---------------- */
+/* Оператор читает человеческую фразу, а тип сообщения из API остаётся в подсказке. */
+var EVENTS=[
+  {k:42,kind:'jobs',t:'+18 заданий',full:'Поступили 18 новых заданий',raw:'add_jobs'},
+  {k:96,kind:'goal',t:'цель: приоритет',full:'Цель смены переключена на приоритет',raw:'set_goal'},
+  {k:137,kind:'close',t:'сеансы S09–S11 отменены',full:'Отменены сеансы наземной связи для S09, S10 и S11',raw:'close_downlink'},
+  {k:174,kind:'outage',t:'S07 недоступен',full:'Аппарат S07 недоступен до 14:30',raw:'satellite_outage'},
+  {k:228,kind:'jobs',t:'+6 заданий',full:'Поступили 6 новых заданий',raw:'add_jobs'}
+];
+function drawAxisHist(){
+  var cv=$('#axisHist'), cssW=cv.clientWidth; if(!cssW) return;
+  var H=24, dpr=Math.min(2,devicePixelRatio||1);
+  cv.width=Math.round(cssW*dpr); cv.height=Math.round(H*dpr);
+  var g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,cssW,H);
+  var bw=cssW/STEPS, max=1, busy=[];
+  for(var k=0;k<STEPS;k++){
+    var n=0; for(var i=0;i<SATS;i++){ var a=sats[i].act[k]; if(a>=1&&a<=3) n++; }
+    busy.push(n); if(n>max) max=n;
+  }
+  for(var k=0;k<STEPS;k++){
+    var h=busy[k]/max*(H-3);
+    g.fillStyle=k<=step?cssv('--hist'):cssv('--hist-dim');
+    g.fillRect(k*bw,H-2-h,Math.max(bw-0.4,0.8),h);
+    if(unavail[k]){ g.fillStyle='rgba(208,59,59,.9)'; g.fillRect(k*bw,H-2,Math.max(bw-0.4,0.8),2); }
+  }
+}
+function renderAxis(){
+  var tr=$('#track');
+  tr.querySelectorAll('.evt').forEach(function(e){ e.remove(); });
+  EVENTS.forEach(function(ev,n){
+    var b=document.createElement('button'), pos=ev.k/STEPS*100, flip=pos>74;
+    b.className='evt'+(flip?' flip':''); b.dataset.k=ev.kind; b.dataset.row=n%2;
+    if(flip){ b.style.right=(100-pos)+'%'; } else { b.style.left=pos+'%'; }
+    b.innerHTML='<em>'+ev.t+'</em><span></span>';
+    b.title=ev.full+' · '+hhmm(ev.k)+' (шаг '+ev.k+') · сообщение '+ev.raw;
+    b.onclick=function(){ setStep(ev.k); $('#hint').textContent=hhmm(ev.k)+' — '+ev.full; };
+    tr.appendChild(b);
+  });
+  $('#done').style.width=(step/STEPS*100)+'%';
+  drawAxisHist();
+}
+
+/* ---------------- wiring ---------------- */
+function render(){ renderKpi(); renderRail(); renderTable(); renderInsp(); renderGrid(); renderBusy(); renderDl(); drawAxisHist(); }
+function setStep(k){
+  step=Math.max(0,Math.min(STEPS,k));
+  $('#range').value=step; $('#stepNum').textContent=step; $('#stepClock').textContent=hhmm(step);
+  $('#done').style.width=(step/STEPS*100)+'%';
+  render();
+}
+$('#range').addEventListener('input',function(e){ setStep(+e.target.value); });
+$('#back1').onclick=function(){ setStep(step-1); };
+$('#fwd1').onclick=function(){ setStep(step+1); };
+$('#fwd12').onclick=function(){ setStep(step+12); };
+$('#fork').onclick=function(){ $('#hint').textContent='Ветвь создана из шага '+step+' — сравнение открывается отдельным экраном'; };
+addEventListener('keydown',function(e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if(e.key==='ArrowRight'){ setStep(step+1); e.preventDefault(); }
+  if(e.key==='ArrowLeft'){ setStep(step-1); e.preventDefault(); }
+});
+function setLayout(l){
+  layout=l; $('#stage').dataset.layout=l;
+  $('#lay-b').setAttribute('aria-pressed',l==='b'); $('#lay-c').setAttribute('aria-pressed',l==='c');
+  requestAnimationFrame(function(){ renderGrid(); renderBusy(); renderDl(); });
+}
+function setView(v){
+  view=v; $('#stage').dataset.view=v; $('#viewHint').textContent=VIEW_HINT[v];
+  $('#p-views').querySelectorAll('.seg button').forEach(function(b){ b.setAttribute('aria-pressed',b.dataset.v===v); });
+  requestAnimationFrame(function(){ renderGrid(); renderBusy(); renderDl(); });
+}
+$('#p-views').addEventListener('click',function(e){ var b=e.target.closest('button[data-v]'); if(b) setView(b.dataset.v); });
+/* Канвасы читают цвета из CSS-переменных в момент отрисовки, поэтому ждём,
+   пока браузер пересчитает стили: перерисовка в том же кадре берёт старую палитру. */
+function repaintTheme(){
+  getComputedStyle(document.body).getPropertyValue('--s1');
+  requestAnimationFrame(function(){ requestAnimationFrame(render); });
+  setTimeout(render,90);
+}
+function setPalette(v){
+  document.body.dataset.palette=v;
+  $('#th-aurora').setAttribute('aria-pressed',v==='aurora');
+  $('#th-black').setAttribute('aria-pressed',v==='black');
+  try{ localStorage.setItem('cosmo-theme',v); }catch(e){}
+  repaintTheme();
+}
+$('#th-aurora').onclick=function(){ setPalette('aurora'); };
+$('#th-black').onclick=function(){ setPalette('black'); };
+$('#lay-b').onclick=function(){ setLayout('b'); };
+$('#lay-c').onclick=function(){ setLayout('c'); };
+$('#goal-p').onclick=function(){ $('#goal-p').setAttribute('aria-pressed','true'); $('#goal-r').setAttribute('aria-pressed','false');
+  $('#hint').textContent='Цель на границе шага '+step+': приоритет'; };
+$('#goal-r').onclick=function(){ $('#goal-r').setAttribute('aria-pressed','true'); $('#goal-p').setAttribute('aria-pressed','false');
+  $('#hint').textContent='Цель на границе шага '+step+': выручка'; };
+$('#railRows').addEventListener('click',function(e){
+  var r=e.target.closest('.rail-row'); if(!r) return;
+  selSat=+r.dataset.i; sel='sat'; renderRail(); renderInsp(); renderGrid();
+});
+$('#railIssues').onclick=function(){ railIssues=!railIssues; this.setAttribute('aria-pressed',railIssues); renderRail(); };
+$('#gridSort').addEventListener('change',function(e){ gridSort=e.target.value; renderGrid(); });
+$('#tbl').addEventListener('click',function(e){
+  var r=e.target.closest('tr[data-j]');
+  if(r){ selJob=+r.dataset.j; sel='job'; renderTable(); renderInsp(); return; }
+  var s=e.target.closest('tr[data-i]');
+  if(s){ selSat=+s.dataset.i; sel='sat'; renderTable(); renderInsp(); renderGrid(); }
+});
+$('#tbl-j').onclick=function(){ tblMode='jobs'; this.setAttribute('aria-pressed','true'); $('#tbl-s').setAttribute('aria-pressed','false'); renderTable(); };
+$('#tbl-s').onclick=function(){ tblMode='sats'; this.setAttribute('aria-pressed','true'); $('#tbl-j').setAttribute('aria-pressed','false'); renderTable(); };
+$('#filters').addEventListener('click',function(e){
+  var b=e.target.closest('.pill'); if(!b) return;
+  filter=b.dataset.f; selJob=null; sel='job';
+  $('#filters').querySelectorAll('.pill').forEach(function(x){ x.setAttribute('aria-pressed',x===b); });
+  renderTable(); renderInsp();
+});
+var pend=0;
+function reflow(){ cancelAnimationFrame(pend); pend=requestAnimationFrame(function(){ renderGrid(); renderBusy(); renderDl(); drawAxisHist(); renderRail(); }); }
+addEventListener('resize',function(){ reflow(); setTimeout(reflow,80); });
+if(window.ResizeObserver){
+  var ro=new ResizeObserver(reflow);
+  ro.observe($('#stage')); ro.observe($('#p-grid').querySelector('.body'));
+}
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(reflow);
+$('#stage').dataset.view=view;
+try{ var saved=localStorage.getItem('cosmo-theme'); if(saved==='black') setPalette(saved); }catch(e){}
+renderAxis(); setStep(step);
+})();
+</script>

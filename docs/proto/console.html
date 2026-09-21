@@ -1,0 +1,901 @@
+<title>Пульт наземной смены</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --plane:#0f141b; --surface:#161c25; --inset:#1d242f; --raised:#232c38;
+  --line:#2a333f; --line-soft:#212a35;
+  --ink:#f2f5f8; --ink-2:#a8b3c0; --ink-3:#77838f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --idle:#28313c; --off:#3c4553;
+  --grid:#222b36; --axis:#39424e;
+  --accent:#6ea8ff; --accent-ink:#0f141b;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: light){
+  :root:where(:not([data-theme="dark"])){
+    color-scheme: light;
+    --plane:#eaeef3; --surface:#fbfcfd; --inset:#f1f4f8; --raised:#ffffff;
+    --line:#d8dee6; --line-soft:#e6eaf0;
+    --ink:#10161d; --ink-2:#4e5a67; --ink-3:#6d7885;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+    --idle:#dfe5ec; --off:#c7d0da;
+    --grid:#e6eaf0; --axis:#c3ccd6;
+    --accent:#1f66c4; --accent-ink:#ffffff;
+  }
+}
+:root[data-theme="light"]{
+  color-scheme: light;
+  --plane:#eaeef3; --surface:#fbfcfd; --inset:#f1f4f8; --raised:#ffffff;
+  --line:#d8dee6; --line-soft:#e6eaf0;
+  --ink:#10161d; --ink-2:#4e5a67; --ink-3:#6d7885;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --idle:#dfe5ec; --off:#c7d0da;
+  --grid:#e6eaf0; --axis:#c3ccd6;
+  --accent:#1f66c4; --accent-ink:#ffffff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-inline:20px;max-width:1440px;margin:0 auto}
+@media (max-width:520px){.wrap{padding-inline:16px}}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--plane);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center;padding-block:12px}
+.brand{display:flex;flex-direction:column;gap:3px;margin-right:auto}
+.brand b{font-size:15px;letter-spacing:.01em}
+.brand span{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.09em}
+.mock{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:3px;padding:1px 6px;letter-spacing:.06em}
+.mock::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--warn)}
+.field{display:flex;flex-direction:column;gap:4px}
+.field>label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3)}
+select{font:inherit;background:var(--inset);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:6px 8px;max-width:min(62vw,320px)}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{background:var(--inset);border:0;padding:6px 12px;cursor:pointer;font-size:13px;color:var(--ink-2)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:500}
+.clock{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.clock b{font-size:22px;font-weight:500;letter-spacing:-.01em}
+.clock i{font-style:normal;font-size:12px;color:var(--ink-3)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.btn{background:var(--inset);border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer;font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--raised)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+
+.ribbon{background:var(--surface);border-bottom:1px solid var(--line)}
+.ribbon .wrap{padding-block:10px}
+.ribbon-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:4px}
+.ribbon-head h2{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:500}
+.ribbon-head p{margin:0;font-size:12px;color:var(--ink-3)}
+.track{position:relative;height:58px}
+.track-bg{position:absolute;left:0;right:0;bottom:13px;height:6px;background:var(--idle);border-radius:3px}
+.track-done{position:absolute;top:0;bottom:0;left:0;background:color-mix(in srgb,var(--s1) 65%,var(--inset));border-radius:3px}
+.evt{position:absolute;bottom:13px;display:flex;flex-direction:column;align-items:flex-start;gap:0;cursor:pointer;background:none;border:0;padding:0;text-align:left}
+.evt span{width:2px;background:var(--ink-3);margin-left:0}
+.evt em{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--ink-3);white-space:nowrap;transform:translateX(-2px)}
+.evt[data-row="1"] span{height:14px}
+.evt[data-row="0"] span{height:32px}
+.evt[data-kind="outage"] span{background:var(--crit)} .evt[data-kind="outage"] em{color:var(--crit)}
+.evt[data-kind="close"] span{background:var(--serious)} .evt[data-kind="close"] em{color:var(--serious)}
+.evt[data-kind="jobs"] span{background:var(--s1)} .evt[data-kind="jobs"] em{color:var(--s1)}
+.evt[data-kind="goal"] span{background:var(--s3)} .evt[data-kind="goal"] em{color:var(--s3)}
+.evt.flip{align-items:flex-end}
+.evt.flip span{align-self:flex-end}
+.evt.flip em{transform:translateX(2px)}
+input[type=range]{position:absolute;left:0;right:0;bottom:5px;width:100%;margin:0;background:none;-webkit-appearance:none;appearance:none;height:22px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:3px;height:22px;background:var(--ink);border:0;border-radius:1px;cursor:ew-resize}
+input[type=range]::-moz-range-thumb{width:3px;height:22px;background:var(--ink);border:0;border-radius:1px;cursor:ew-resize}
+.hours{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+
+.tabs{background:var(--plane);border-bottom:1px solid var(--line)}
+.tabs .wrap{display:flex;gap:2px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;cursor:pointer;color:var(--ink-2);white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:500}
+main .wrap{padding-block:20px 56px}
+section[role=tabpanel]{display:flex;flex-direction:column;gap:18px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.card>header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.card h3{font-size:14px}
+.card header p{margin:0;font-size:12px;color:var(--ink-3);max-width:66ch}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.tile{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.tile .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+.tile .v{font-family:var(--mono);font-size:25px;letter-spacing:-.02em}
+.tile .v small{font-size:14px;color:var(--ink-3)}
+.tile .d{font-size:12px;color:var(--ink-2);display:flex;align-items:baseline;gap:5px}
+.tile .d b{font-weight:500;font-family:var(--mono)}
+.up{color:var(--good)} .down{color:var(--crit)} .flat{color:var(--ink-3)}
+.note{display:flex;gap:10px;padding:12px 14px;background:var(--inset);border-left:2px solid var(--accent);border-radius:0 4px 4px 0;font-size:13px;color:var(--ink-2)}
+.note b{color:var(--ink);font-weight:500}
+.two{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+.scroll{overflow-x:auto}
+.readout{font-family:var(--mono);font-size:12px;color:var(--ink-2);min-height:19px;display:flex;gap:14px;flex-wrap:wrap}
+.readout b{color:var(--ink);font-weight:500}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:500;padding:0 10px 7px;white-space:nowrap;border-bottom:1px solid var(--line)}
+td{padding:6px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--inset)}
+tbody tr[aria-selected="true"] td{background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+td.id{font-family:var(--mono);white-space:nowrap}
+.meter{display:flex;align-items:center;gap:8px;min-width:108px}
+.meter .bar{position:relative;flex:1;height:6px;background:var(--idle);border-radius:3px}
+.meter .bar i{position:absolute;top:0;bottom:0;left:0;border-radius:3px;background:var(--s1)}
+.meter .bar u{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--ink-3)}
+.meter b{font-family:var(--mono);font-size:12px;font-weight:400;min-width:36px;text-align:right}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 7px;border-radius:3px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ink-3);flex:none}
+.chip.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}.chip.good::before{background:var(--good)}
+.chip.crit{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,transparent)}.chip.crit::before{background:var(--crit)}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}.chip.warn::before{background:var(--warn)}
+.chip.ser{color:var(--serious);border-color:color-mix(in srgb,var(--serious) 45%,transparent)}.chip.ser::before{background:var(--serious)}
+.chip.cert{border-style:dashed}.chip.cert::before{background:none;border:1px solid currentColor;border-radius:50%}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters input[type=search]{font:inherit;background:var(--inset);border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:6px 9px;width:150px}
+.pill{background:var(--inset);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font-size:12px;cursor:pointer;color:var(--ink-2)}
+.pill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.strip{display:block;width:288px;height:13px}
+.tbl-note{margin:10px 0 0;font-size:12px;color:var(--ink-3)}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13px;margin:0}
+.dl dt{color:var(--ink-3)}
+.dl dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.empty{color:var(--ink-3);font-size:13px;padding:18px 0}
+.tip{position:fixed;z-index:60;pointer-events:none;background:var(--raised);border:1px solid var(--line);border-radius:5px;padding:8px 10px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.35);display:none;min-width:150px}
+.tip b{font-family:var(--mono);display:block;margin-bottom:5px;font-weight:500}
+.tip ul{margin:0;padding:0;list-style:none;display:grid;gap:3px}
+.tip li{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.tip li i{display:inline-block;width:8px;height:8px;border-radius:2px;flex:none}
+.tip li span{color:var(--ink-2);margin-right:auto}
+.tip li em{font-style:normal;font-family:var(--mono)}
+.proof{display:flex;flex-direction:column;gap:12px}
+.verdict{font-size:13px;padding:10px 12px;border-radius:4px;background:var(--inset);border-left:2px solid var(--crit)}
+.verdict.ok{border-left-color:var(--good)}
+.mini{display:flex;flex-direction:column;gap:14px}
+.mini h4{margin:0 0 2px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+.tree{list-style:none;margin:0 0 14px;padding:0}
+.tree li{position:relative;padding:0 0 16px 20px;margin-left:6px;border-left:1.5px solid var(--axis)}
+.tree li:last-child{border-left-color:transparent;padding-bottom:0}
+.tree li::before{content:"";position:absolute;left:-6px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--s1);border:2px solid var(--surface)}
+.tree li.msg::before{background:var(--serious)}
+.tree li.b::before{background:var(--s3)}
+.tree li.fork{margin-left:28px}
+.tree li b{display:block;font-weight:500;font-size:13px}
+.tree li span{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <b>Пульт наземной смены</b>
+      <span>Cosmostars <span class="mock">прототип · данные-моки</span></span>
+    </div>
+    <div class="field">
+      <label for="scn">Смена</label>
+      <select id="scn">
+        <option value="P02_shift">P02_shift · 48 аппаратов · 1208 заданий</option>
+        <option value="P01_intro">P01_intro · 2 аппарата · 16 заданий</option>
+        <option value="P03_energy">P03_energy · дефицит энергии</option>
+        <option value="P04_demand">P04_demand · 8120 заданий</option>
+      </select>
+    </div>
+    <div class="field">
+      <label id="goal-lbl">Цель</label>
+      <div class="seg" role="group" aria-labelledby="goal-lbl">
+        <button id="goal-p" aria-pressed="true">Приоритет</button>
+        <button id="goal-r" aria-pressed="false">Выручка</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="stepRange">Шаг смены</label>
+      <div class="clock"><b id="stepNum">137</b><i>/ 288</i><i id="stepClock">11:25</i></div>
+    </div>
+    <div class="acts">
+      <button class="btn" id="back1">−1</button>
+      <button class="btn primary" id="fwd1">Шаг</button>
+      <button class="btn" id="fwd12">+12</button>
+      <button class="btn" id="fwdEnd">До конца</button>
+      <button class="btn" id="mkFork">Ветвь</button>
+    </div>
+  </div>
+</header>
+
+<div class="ribbon">
+  <div class="wrap">
+    <div class="ribbon-head">
+      <h2>Сутки смены · шаг 5 минут</h2>
+      <p id="ribbonHint">Сообщения приняты на границе шага. Тяните курсор — всё ниже пересчитывается.</p>
+    </div>
+    <div class="track" id="track">
+      <div class="track-bg"><div class="track-done" id="trackDone"></div></div>
+      <input type="range" id="stepRange" min="0" max="288" step="1" value="137" aria-label="Шаг смены">
+    </div>
+    <div class="hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+  </div>
+</div>
+
+<nav class="tabs">
+  <div class="wrap" role="tablist" aria-label="Экраны пульта">
+    <button role="tab" aria-selected="true" data-tab="shift">Смена</button>
+    <button role="tab" aria-selected="false" data-tab="sats">Аппараты</button>
+    <button role="tab" aria-selected="false" data-tab="jobs">Задания</button>
+    <button role="tab" aria-selected="false" data-tab="grid">Сетка смены</button>
+    <button role="tab" aria-selected="false" data-tab="branch">Ветви</button>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap">
+    <section role="tabpanel" id="p-shift" aria-label="Смена">
+      <div class="tiles" id="tiles"></div>
+      <div class="card">
+        <header>
+          <div>
+            <h3>Чем занята группировка</h3>
+            <p>Аппаратов в работе на каждом шаге из 48. Работы в смене всего около 2100 аппарато-шагов из 13 824 — группировка не перегружена, узкое место в другом.</p>
+          </div>
+          <div class="legend">
+            <span><i style="background:var(--s1)"></i>наземная связь</span>
+            <span><i style="background:var(--s2)"></i>ретрансляция</span>
+            <span><i style="background:var(--s3)"></i>калибровка</span>
+            <span><i style="background:var(--crit)"></i>недоступность</span>
+          </div>
+        </header>
+        <div class="scroll"><svg id="areaChart" role="img" aria-label="Занятость группировки по шагам смены"></svg></div>
+        <div class="readout" id="areaRead"></div>
+      </div>
+      <div class="card">
+        <header>
+          <div>
+            <h3>Наземная связь: где узкое место</h3>
+            <p>Фон — сколько аппаратов в зоне контакта на шаге. Столбики — сколько передач планировщик реально занял. Пунктир — жёсткий лимит две передачи на шаг.</p>
+          </div>
+          <div class="legend">
+            <span><i style="background:var(--s1)"></i>передач занято</span>
+            <span><i style="background:color-mix(in srgb,var(--s1) 30%,var(--surface))"></i>аппаратов в контакте</span>
+            <span><i style="background:var(--crit)"></i>лимит 2</span>
+          </div>
+        </header>
+        <div class="scroll"><svg id="dlChart" role="img" aria-label="Использование окон наземной связи по шагам"></svg></div>
+        <div class="readout" id="dlRead"></div>
+      </div>
+      <div class="note">
+        <div><b>458 слотов контакта против 410 шагов работы.</b> Связь доступна на 3% аппарато-шагов, и у 210 из 344 downlink-заданий слотов ровно столько, сколько нужно работы: пропущенный слот уже ничем не компенсируется. Поэтому расписание связи считается заранее и точно, а ретрансляция — пошагово.</div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="p-sats" aria-label="Аппараты" hidden>
+      <div class="two">
+        <div class="card">
+          <header>
+            <div>
+              <h3>Аппараты</h3>
+              <p>День аппарата — полоса из 288 шагов: факт до курсора, план после него, окна связи — серым фоном.</p>
+            </div>
+          </header>
+          <div class="filters">
+            <input type="search" id="satSearch" placeholder="S17" aria-label="Поиск аппарата">
+            <button class="pill" id="satOnlyIssues" aria-pressed="false">Только с проблемами</button>
+            <span class="legend" style="margin-left:auto"><span><i style="background:var(--s1)"></i>связь</span><span><i style="background:var(--s2)"></i>релей</span><span><i style="background:var(--s3)"></i>калибровка</span><span><i style="background:var(--line)"></i>окно связи</span></span>
+          </div>
+          <div class="scroll"><table><thead><tr>
+            <th>Аппарат</th><th>Заряд</th><th class="num">Темп.</th><th>Калибровка</th><th>Сейчас</th><th>День</th>
+          </tr></thead><tbody id="satRows"></tbody></table></div>
+          <p class="tbl-note">Резерв 30%, критический порог 15% — отметки на шкале заряда. Калибровка действительна 96 шагов.</p>
+        </div>
+        <div class="card" id="satDetail"></div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="p-jobs" aria-label="Задания" hidden>
+      <div class="two">
+        <div class="card">
+          <header>
+            <div>
+              <h3>Задания</h3>
+              <p>Выберите строку — справа появится разбор: почему задание выполнено, сорвано или невыполнимо в принципе.</p>
+            </div>
+          </header>
+          <div class="filters" id="jobFilters">
+            <button class="pill" data-f="all" aria-pressed="true">Все</button>
+            <button class="pill" data-f="done" aria-pressed="false">Выполнено</button>
+            <button class="pill" data-f="missed" aria-pressed="false">Просрочено</button>
+            <button class="pill" data-f="cert" aria-pressed="false">Невыполнимо · сертификат</button>
+            <button class="pill" data-f="p3" aria-pressed="false">Приоритет 3</button>
+          </div>
+          <div class="scroll"><table><thead><tr>
+            <th>Задание</th><th>Аппарат</th><th>Тип</th><th class="num">П</th><th class="num">$</th><th class="num">Окно</th><th class="num">Работа</th><th>Статус</th>
+          </tr></thead><tbody id="jobRows"></tbody></table></div>
+          <p class="tbl-note" id="jobNote"></p>
+        </div>
+        <div class="card" id="jobDetail"></div>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="p-grid" aria-label="Сетка смены" hidden>
+      <div class="card">
+        <header>
+          <div>
+            <h3>Сетка смены · 48 аппаратов × 288 шагов</h3>
+            <p>Альтернатива Ганту: клетка — один аппарато-шаг. Занято около 15% клеток, поэтому сетка честно показывает, что дефицитен не аппарат, а окно связи.</p>
+          </div>
+          <div class="legend">
+            <span><i style="background:var(--s1)"></i>связь</span>
+            <span><i style="background:var(--s2)"></i>релей</span>
+            <span><i style="background:var(--s3)"></i>калибровка</span>
+            <span><i style="background:var(--line)"></i>окно связи</span>
+            <span><i style="background:var(--off)"></i>недоступен</span>
+          </div>
+        </header>
+        <div class="filters">
+          <button class="pill" id="gridWindows" aria-pressed="true">Окна связи фоном</button>
+          <button class="pill" id="gridPlan" aria-pressed="true">Отделять план от факта</button>
+          <span class="readout" id="gridRead" style="margin-left:auto">Наведите на клетку</span>
+        </div>
+        <div class="scroll" id="gridScroll"><canvas id="gridCanvas"></canvas></div>
+        <p class="tbl-note">Клик по клетке — досчитать смену до этого шага.</p>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="p-branch" aria-label="Ветви" hidden>
+      <div class="two">
+        <div class="card">
+          <header><div><h3>Ветви расчёта</h3><p>Обе ветви выросли из одного контрольного состояния и получили одни и те же сообщения в одном порядке — иначе сравнение не показывается.</p></div></header>
+          <ol class="tree">
+            <li><b>Смена P02_shift</b><span>шаг 0 · цель приоритет</span></li>
+            <li class="msg"><b>close_downlink S09–S11</b><span>шаг 137 · контрольное состояние</span></li>
+            <li class="fork"><b>Ветвь A</b><span>шаг 288 · цель приоритет</span></li>
+            <li class="fork b"><b>Ветвь B</b><span>шаг 288 · цель выручка</span></li>
+          </ol>
+          <div class="verdict ok">Общее состояние: шаг 137 · сообщения совпадают · сценарий один. Сравнение корректно.</div>
+        </div>
+        <div class="card">
+          <header><div><h3>Ветвь A против ветви B</h3><p>Обе после отмены сеансов на S09–S11. Различаются только целью управления.</p></div></header>
+          <div class="scroll"><table><thead><tr><th>Показатель</th><th class="num">A · приоритет</th><th class="num">B · выручка</th><th class="num">Разница</th></tr></thead><tbody id="cmpRows"></tbody></table></div>
+          <p class="tbl-note">Равные значения показываются как «равнозначно», а не как победа одной ветви.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+<div class="tip" id="tip" role="status" aria-live="off"></div>
+
+<script>
+(function(){
+'use strict';
+var STEPS=288, SATS=48, LIMIT=2, RESERVE=30, CRITICAL=15, CAL_VALID=96;
+var seed=20260922;
+function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+function sidOf(i){ return 'S'+String(i+1).padStart(2,'0'); }
+function hhmm(step){ var m=step*5, h=Math.floor(m/60)%24; return String(h).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+
+/* ================= mock shift ================= */
+var sats=[], DL=[], RL=[];
+for(var i=0;i<SATS;i++){
+  var dl=new Uint8Array(STEPS), rl=new Uint8Array(STEPS);
+  for(var k=0;k<STEPS;k++) rl[k]=rnd()<0.99?1:0;
+  var passes=3+Math.floor(rnd()*2);
+  for(var p=0;p<passes;p++){
+    var st=Math.floor(rnd()*(STEPS-8)), len=2+Math.floor(rnd()*3);
+    for(var q=st;q<st+len;q++) dl[q]=1;
+  }
+  DL.push(dl); RL.push(rl);
+  sats.push({id:sidOf(i),soc:new Float32Array(STEPS),temp:new Float32Array(STEPS),act:new Uint8Array(STEPS),cal:new Uint16Array(STEPS)});
+}
+/* S17 carries the group certificate: exactly five contacts inside 96–144 */
+for(var k=96;k<144;k++) DL[16][k]=0;
+[100,108,116,124,132].forEach(function(k){ DL[16][k]=1; });
+
+var outages=[{sat:6,from:150,to:174},{sat:22,from:60,to:78}];
+/* act: 0 idle, 1 downlink, 2 relay, 3 calibration, 4 unavailable */
+outages.forEach(function(o){ for(var k=o.from;k<o.to;k++) sats[o.sat].act[k]=4; });
+
+var usedDL=new Uint8Array(STEPS), inContact=new Uint8Array(STEPS);
+for(var k=0;k<STEPS;k++){
+  var cap=LIMIT;
+  for(var i=0;i<SATS;i++){
+    if(!DL[i][k]||sats[i].act[k]===4) continue;
+    inContact[k]++;
+    if(cap>0&&rnd()<0.92){ sats[i].act[k]=1; cap--; usedDL[k]++; }
+  }
+}
+/* relay in runs of 1–3 steps: about 36 worked steps per satellite over the shift */
+for(var i=0;i<SATS;i++){
+  var target=30+Math.floor(rnd()*14), placed=0, guard=0;
+  while(placed<target&&guard++<400){
+    var st=Math.floor(rnd()*(STEPS-3)), len=1+Math.floor(rnd()*3), free=true;
+    for(var q=st;q<st+len;q++) if(sats[i].act[q]!==0||!RL[i][q]) free=false;
+    if(!free) continue;
+    for(var q=st;q<st+len;q++) sats[i].act[q]=2;
+    placed+=len;
+  }
+}
+/* calibration: one step, placed before the next promised transmission */
+for(var i=0;i<SATS;i++){
+  var age=Math.floor(rnd()*60);
+  for(var k=0;k<STEPS;k++){
+    age++;
+    if(age>=CAL_VALID-8&&sats[i].act[k]===0){ sats[i].act[k]=3; age=0; }
+    sats[i].cal[k]=age;
+  }
+}
+for(var i=0;i<SATS;i++){
+  var s=sats[i], soc=58+rnd()*30, t=12+rnd()*8, phase=rnd()*6.28;
+  for(var k=0;k<STEPS;k++){
+    var sun=Math.max(0,Math.sin(phase+k*0.39));
+    var load=s.act[k]===1?2.6:s.act[k]===2?1.9:s.act[k]===3?1.6:s.act[k]===4?0.6:1.0;
+    soc+=sun*3.4-load; if(soc>100)soc=100; if(soc<8)soc=8;
+    t+=(s.act[k]&&s.act[k]!==4?0.9:-0.18)+(sun-0.5)*0.5; if(t>42)t=42; if(t<2)t=2;
+    s.soc[k]=soc; s.temp[k]=t;
+  }
+}
+var unavail=new Uint8Array(STEPS);
+for(var k=0;k<STEPS;k++){ var n=0; for(var i=0;i<SATS;i++) if(sats[i].act[k]===4) n++; unavail[k]=n; }
+
+/* ================= mock jobs ================= */
+var TOTAL=1208, DOWNLINK=344, WINDOW_CERTS=38, GROUP_CERTS=6, CRIT_TOTAL=334, CRIT_MISS=19;
+var jobs=[];
+function slotsIn(si,a,b){ var n=0; for(var k=a;k<b;k++) if(DL[si][k]) n++; return n; }
+for(var j=0;j<TOTAL-GROUP_CERTS;j++){
+  var kind=j<DOWNLINK-GROUP_CERTS?'downlink':'relay';
+  var work=1+Math.floor(rnd()*3), si=Math.floor(rnd()*SATS);
+  if(si===16) si=17;
+  var rel=Math.floor(rnd()*(STEPS-18)), dead=Math.min(STEPS,rel+work+1+Math.floor(rnd()*14));
+  if(kind==='downlink'){
+    var guard=0;
+    while(slotsIn(si,rel,dead)<work&&dead<STEPS&&guard++<STEPS) dead++;
+  }
+  jobs.push({id:'',kind:kind,work:work,rel:rel,dead:dead,pr:1,si:si,sat:sidOf(si),val:8+rnd()*54,done:null,cert:null});
+}
+/* group certificate on S17: six jobs whose windows sit inside 96–144 */
+var groupInfo={sat:'S17',from:96,to:144,count:GROUP_CERTS,work:8,contacts:5};
+[2,2,1,1,1,1].forEach(function(w,n){
+  jobs.push({id:'',kind:'downlink',work:w,rel:96+n*2,dead:144,pr:1,si:16,sat:'S17',
+    val:18+rnd()*30,done:null,cert:{type:'group',group:groupInfo}});
+});
+jobs.sort(function(a,b){ return a.dead-b.dead||a.rel-b.rel; });
+jobs.forEach(function(job,n){ job.id='JOB-'+String(n+1).padStart(4,'0'); });
+
+/* window certificates: shrink the window of 38 downlink jobs until it provably cannot hold the work */
+var made=0;
+for(var n=0;n<jobs.length&&made<WINDOW_CERTS;n++){
+  var job=jobs[n];
+  if(job.kind!=='downlink'||job.cert||job.dead-job.rel<3) continue;
+  var d=job.dead;
+  while(d>job.rel+job.work&&slotsIn(job.si,job.rel,d)>=job.work) d--;
+  if(slotsIn(job.si,job.rel,d)<job.work){ job.dead=d; job.cert={type:'window',slots:slotsIn(job.si,job.rel,d)}; made++; }
+}
+/* priorities: 334 critical jobs, of which exactly 19 are provably unreachable */
+var certJobs=jobs.filter(function(j){ return j.cert; }), plain=jobs.filter(function(j){ return !j.cert; });
+certJobs.forEach(function(j,n){ j.pr=n<CRIT_MISS?3:(rnd()<0.5?1:2); });
+plain.forEach(function(j,n){ j.pr=n<CRIT_TOTAL-CRIT_MISS?3:(rnd()<0.5?1:2); });
+for(var n=plain.length-1;n>0;n--){ var m=Math.floor(rnd()*(n+1)), t=plain[n].pr; plain[n].pr=plain[m].pr; plain[m].pr=t; }
+var valSum=0;
+jobs.forEach(function(job){
+  if(job.cert) return;
+  var span=Math.max(1,job.dead-job.rel-job.work);
+  job.done=Math.min(job.dead-1,job.rel+job.work+Math.floor(rnd()*span));
+  valSum+=job.val;
+});
+var scale=27407/valSum;
+jobs.forEach(function(job){ job.val=Math.round(job.val*scale*100)/100; });
+
+var cum=[];
+(function(){
+  var byDone=jobs.filter(function(j){ return j.done!==null; }).sort(function(a,b){ return a.done-b.done; });
+  var byDead=jobs.filter(function(j){ return j.cert; }).sort(function(a,b){ return a.dead-b.dead; });
+  var done=0,rev=0,p3=0,miss=0,pi=0,mi=0,p3due=0;
+  var dueSorted=jobs.filter(function(j){ return j.pr===3; }).sort(function(a,b){ return a.dead-b.dead; }), di=0;
+  for(var k=0;k<=STEPS;k++){
+    while(pi<byDone.length&&byDone[pi].done<=k){ done++; rev+=byDone[pi].val; if(byDone[pi].pr===3)p3++; pi++; }
+    while(mi<byDead.length&&byDead[mi].dead<=k){ miss++; mi++; }
+    while(di<dueSorted.length&&dueSorted[di].dead<=k){ p3due++; di++; }
+    cum.push({done:done,rev:rev,p3:p3,miss:miss,p3due:p3due});
+  }
+})();
+
+/* ================= state ================= */
+var step=137, selSat=16, selJob=null, jobFilter='all', satIssuesOnly=false, satQuery='';
+var showWindows=true, showPlan=true;
+var $=function(s){ return document.querySelector(s); };
+var tip=$('#tip');
+function showTip(x,y,html){
+  tip.innerHTML=html; tip.style.display='block';
+  var r=tip.getBoundingClientRect();
+  tip.style.left=Math.max(8,Math.min(x+14,innerWidth-r.width-8))+'px';
+  tip.style.top=Math.max(8,Math.min(y+14,innerHeight-r.height-8))+'px';
+}
+function hideTip(){ tip.style.display='none'; }
+function money(v){ return Math.round(v).toLocaleString('ru-RU'); }
+var ACT_VAR=['--idle','--s1','--s2','--s3','--off'];
+var ACT_NAME=['простой','наземная связь','ретрансляция','калибровка','недоступен'];
+function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function width(el){ var w=el.parentNode.clientWidth||el.clientWidth; return Math.max(520,w); }
+
+/* ================= tiles ================= */
+function renderTiles(){
+  var c=cum[step];
+  var base={done:Math.round(c.done*0.977),p3:Math.round(c.p3*0.962),rev:c.rev*0.986,miss:Math.round(c.miss*1.61)};
+  var t=[
+    {k:'Завершено заданий',v:c.done,s:' / '+TOTAL,d:c.done-base.done,dir:1,note:'к baseline-edf'},
+    {k:'Приоритет 3 в срок',v:c.p3,s:' / '+Math.max(c.p3,c.p3due),d:c.p3-base.p3,dir:1,note:'к baseline-edf'},
+    {k:'Выручка, $',v:money(c.rev),s:'',d:Math.round(c.rev-base.rev),dir:1,note:'к baseline-edf',money:true},
+    {k:'Просрочено',v:c.miss,s:'',d:c.miss-base.miss,dir:-1,note:'все с сертификатом'},
+    {k:'Работа впустую',v:0,s:' шагов',d:0,dir:-1,note:'ни один шаг не ушёл в срыв'},
+    {k:'Ниже резерва',v:0,s:' апп.-шагов',d:0,dir:-1,note:'у baseline на P03 было 1696'}
+  ];
+  $('#tiles').innerHTML=t.map(function(x){
+    var cls=x.d===0?'flat':((x.d>0)===(x.dir>0)?'up':'down');
+    var sign=x.d>0?'+':(x.d<0?'−':'±');
+    var val=x.d===0?'0':(x.money?money(Math.abs(x.d)):Math.abs(x.d));
+    return '<div class="tile"><div class="k">'+x.k+'</div><div class="v">'+x.v+'<small>'+x.s+'</small></div>'+
+      '<div class="d '+cls+'"><b>'+sign+val+'</b><span style="color:var(--ink-3)">'+x.note+'</span></div></div>';
+  }).join('');
+}
+
+/* ================= busy chart ================= */
+function renderArea(){
+  var el=$('#areaChart'), W=width(el), H=214, pl=34, pr=10, pt=10, pb=46;
+  var iw=W-pl-pr, ih=H-pt-pb;
+  var bands=[1,2,3], counts=[], maxY=4;
+  for(var k=0;k<STEPS;k++){
+    var row=[0,0,0]; for(var i=0;i<SATS;i++){ var a=sats[i].act[k]; if(a>=1&&a<=3) row[a-1]++; }
+    counts.push(row);
+    var sum=row[0]+row[1]+row[2]; if(sum>maxY) maxY=sum;
+  }
+  maxY=Math.ceil(maxY/4)*4;
+  var xs=function(k){ return pl+k/STEPS*iw; }, ys=function(v){ return pt+ih-v/maxY*ih; };
+  var out='';
+  for(var g=0;g<=4;g++){
+    var v=maxY*g/4;
+    out+='<line x1="'+pl+'" y1="'+ys(v)+'" x2="'+(W-pr)+'" y2="'+ys(v)+'" stroke="var(--grid)"/>'+
+      '<text x="'+(pl-6)+'" y="'+(ys(v)+4)+'" text-anchor="end" fill="var(--ink-3)" font-size="10" font-family="var(--mono)">'+v+'</text>';
+  }
+  var base=new Float32Array(STEPS);
+  bands.forEach(function(a,bi){
+    var d='', top=new Float32Array(STEPS);
+    for(var k=0;k<STEPS;k++) top[k]=base[k]+counts[k][bi];
+    for(var k=0;k<STEPS;k++) d+=(k?'L':'M')+xs(k)+' '+ys(top[k])+'L'+xs(k+1)+' '+ys(top[k]);
+    for(var k=STEPS-1;k>=0;k--) d+='L'+xs(k+1)+' '+ys(base[k])+'L'+xs(k)+' '+ys(base[k]);
+    out+='<path d="'+d+'Z" fill="var('+ACT_VAR[a]+')" stroke="var(--surface)" stroke-width=".6"/>';
+    base=top;
+  });
+  var sy=pt+ih+16;
+  out+='<text x="'+pl+'" y="'+(sy-4)+'" fill="var(--ink-3)" font-size="9" font-family="var(--mono)">НЕДОСТУПНОСТЬ</text>'+
+    '<rect x="'+pl+'" y="'+sy+'" width="'+iw+'" height="7" fill="var(--idle)" rx="2"/>';
+  for(var k=0;k<STEPS;k++) if(unavail[k]) out+='<rect x="'+xs(k)+'" y="'+sy+'" width="'+Math.max(1.2,iw/STEPS)+'" height="7" fill="var(--crit)"/>';
+  for(var h=0;h<=24;h+=3) out+='<text x="'+xs(h*12)+'" y="'+(H-6)+'" text-anchor="middle" fill="var(--ink-3)" font-size="10" font-family="var(--mono)">'+String(h).padStart(2,'0')+':00</text>';
+  out+='<line x1="'+xs(step)+'" y1="'+pt+'" x2="'+xs(step)+'" y2="'+(pt+ih)+'" stroke="var(--ink)" stroke-width="1.5"/>'+
+    '<text x="'+(pl+2)+'" y="'+(pt+9)+'" fill="var(--ink-3)" font-size="10">аппаратов в работе из 48</text>';
+  el.setAttribute('viewBox','0 0 '+W+' '+H); el.setAttribute('width',W); el.setAttribute('height',H);
+  el.innerHTML=out;
+  el.onmousemove=function(e){
+    var r=el.getBoundingClientRect(), k=Math.round(((e.clientX-r.left)/r.width*W-pl)/iw*STEPS);
+    k=Math.max(0,Math.min(STEPS-1,k));
+    var row=counts[k];
+    var rows=[[1,row[0]],[2,row[1]],[3,row[2]]].map(function(p){
+      return '<li><i style="background:var('+ACT_VAR[p[0]]+')"></i><span>'+ACT_NAME[p[0]]+'</span><em>'+p[1]+'</em></li>';
+    }).join('')+'<li><i style="background:var(--idle)"></i><span>простой</span><em>'+(SATS-row[0]-row[1]-row[2]-unavail[k])+'</em></li>';
+    showTip(e.clientX,e.clientY,'<b>шаг '+k+' · '+hhmm(k)+'</b><ul>'+rows+'</ul>');
+  };
+  el.onmouseleave=hideTip;
+  readArea();
+}
+function readArea(){
+  var row=[0,0,0,0,0]; for(var i=0;i<SATS;i++) row[sats[i].act[step]]++;
+  $('#areaRead').innerHTML='на курсоре: шаг <b>'+step+'</b> · '+hhmm(step)+' · связь <b>'+row[1]+'</b> · релей <b>'+row[2]+'</b> · калибровка <b>'+row[3]+'</b> · простой <b>'+row[0]+'</b> · недоступно <b>'+row[4]+'</b>';
+}
+
+/* ================= downlink contention ================= */
+function renderDl(){
+  var el=$('#dlChart'), W=width(el), H=158, pl=34, pr=10, pt=10, pb=24;
+  var iw=W-pl-pr, ih=H-pt-pb, maxY=0;
+  for(var k=0;k<STEPS;k++) if(inContact[k]>maxY) maxY=inContact[k];
+  maxY=Math.max(3,maxY);
+  var xs=function(k){ return pl+k/STEPS*iw; }, ys=function(v){ return pt+ih-v/maxY*ih; };
+  var out='';
+  for(var v=0;v<=maxY;v++) out+='<line x1="'+pl+'" y1="'+ys(v)+'" x2="'+(W-pr)+'" y2="'+ys(v)+'" stroke="var(--grid)"/>'+
+    '<text x="'+(pl-6)+'" y="'+(ys(v)+4)+'" text-anchor="end" fill="var(--ink-3)" font-size="10" font-family="var(--mono)">'+v+'</text>';
+  var d='M'+xs(0)+' '+ys(0);
+  for(var k=0;k<STEPS;k++) d+='L'+xs(k)+' '+ys(inContact[k])+'L'+xs(k+1)+' '+ys(inContact[k]);
+  d+='L'+xs(STEPS)+' '+ys(0)+'Z';
+  out+='<path d="'+d+'" fill="color-mix(in srgb, var(--s1) 30%, var(--surface))"/>';
+  var bw=Math.max(1.4,iw/STEPS-0.8);
+  for(var k=0;k<STEPS;k++) if(usedDL[k]) out+='<rect x="'+(xs(k)+0.4)+'" y="'+ys(usedDL[k])+'" width="'+bw+'" height="'+(ys(0)-ys(usedDL[k]))+'" fill="var(--s1)" rx="1"/>';
+  out+='<line x1="'+pl+'" y1="'+ys(LIMIT)+'" x2="'+(W-pr)+'" y2="'+ys(LIMIT)+'" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="5 4"/>'+
+    '<text x="'+(W-pr-4)+'" y="'+(ys(LIMIT)-5)+'" text-anchor="end" fill="var(--crit)" font-size="10">лимит 2 передачи на шаг</text>';
+  for(var h=0;h<=24;h+=3) out+='<text x="'+xs(h*12)+'" y="'+(H-6)+'" text-anchor="middle" fill="var(--ink-3)" font-size="10" font-family="var(--mono)">'+String(h).padStart(2,'0')+':00</text>';
+  out+='<line x1="'+xs(step)+'" y1="'+pt+'" x2="'+xs(step)+'" y2="'+(pt+ih)+'" stroke="var(--ink)" stroke-width="1.5"/>';
+  el.setAttribute('viewBox','0 0 '+W+' '+H); el.setAttribute('width',W); el.setAttribute('height',H);
+  el.innerHTML=out;
+  var tot=0,cap=0,cs=0;
+  for(var k=0;k<STEPS;k++){ tot+=usedDL[k]; cap+=Math.min(LIMIT,inContact[k]); cs+=inContact[k]; }
+  $('#dlRead').innerHTML='слотов контакта за смену <b>'+cs+'</b> · доступно по лимиту <b>'+cap+'</b> · занято <b>'+tot+'</b> · свободно <b>'+(cap-tot)+'</b>';
+  el.onmousemove=function(e){
+    var r=el.getBoundingClientRect(), k=Math.round(((e.clientX-r.left)/r.width*W-pl)/iw*STEPS);
+    k=Math.max(0,Math.min(STEPS-1,k));
+    showTip(e.clientX,e.clientY,'<b>шаг '+k+' · '+hhmm(k)+'</b><ul><li><i style="background:var(--s1)"></i><span>передач занято</span><em>'+usedDL[k]+' / '+LIMIT+'</em></li><li><i style="background:color-mix(in srgb,var(--s1) 30%,var(--surface))"></i><span>в контакте</span><em>'+inContact[k]+'</em></li></ul>');
+  };
+  el.onmouseleave=hideTip;
+}
+
+/* ================= satellites ================= */
+function satIssue(s){ return s.soc[step]<RESERVE||s.temp[step]>38||s.cal[step]>=CAL_VALID||s.act[step]===4; }
+function renderSats(){
+  var rows='';
+  sats.forEach(function(s,i){
+    if(satQuery&&s.id.toLowerCase().indexOf(satQuery)<0) return;
+    if(satIssuesOnly&&!satIssue(s)) return;
+    var soc=s.soc[step], cal=s.cal[step], act=s.act[step];
+    var socVar=soc<CRITICAL?'--crit':soc<RESERVE?'--warn':'--s1';
+    var calVar=cal>=CAL_VALID?'--crit':cal>CAL_VALID*0.85?'--warn':'--s3';
+    rows+='<tr data-i="'+i+'" aria-selected="'+(i===selSat)+'"><td class="id">'+s.id+'</td>'+
+      '<td><div class="meter"><div class="bar"><i style="width:'+soc.toFixed(0)+'%;background:var('+socVar+')"></i><u style="left:'+RESERVE+'%"></u><u style="left:'+CRITICAL+'%"></u></div><b>'+soc.toFixed(0)+'%</b></div></td>'+
+      '<td class="num">'+s.temp[step].toFixed(1)+'</td>'+
+      '<td><div class="meter"><div class="bar"><i style="width:'+Math.min(100,cal/CAL_VALID*100).toFixed(0)+'%;background:var('+calVar+')"></i></div><b>'+cal+'</b></div></td>'+
+      '<td><span class="chip '+(act===4?'crit':act===1?'good':act===0?'':'ser')+'">'+ACT_NAME[act]+'</span></td>'+
+      '<td><canvas class="strip" width="576" height="26" data-strip="'+i+'"></canvas></td></tr>';
+  });
+  $('#satRows').innerHTML=rows||'<tr><td colspan="6" class="empty">Ни один аппарат не подходит под фильтр.</td></tr>';
+  document.querySelectorAll('canvas[data-strip]').forEach(function(c){ drawStrip(c,+c.dataset.strip); });
+  renderSatDetail();
+}
+function drawStrip(cv,i){
+  var g=cv.getContext('2d'), s=sats[i], w=cv.width/STEPS, cols=ACT_VAR.map(cssv);
+  g.clearRect(0,0,cv.width,cv.height);
+  for(var k=0;k<STEPS;k++){
+    if(showWindows&&DL[i][k]){ g.fillStyle=cssv('--line'); g.fillRect(k*w,0,w,cv.height); }
+    var a=s.act[k];
+    if(!a){ if(!(showWindows&&DL[i][k])){ g.fillStyle=cols[0]; g.fillRect(k*w,11,w,4); } continue; }
+    g.globalAlpha=(k>step&&showPlan)?0.42:1;
+    g.fillStyle=cols[a]; g.fillRect(k*w,3,w,20); g.globalAlpha=1;
+  }
+  g.fillStyle=cssv('--ink'); g.fillRect(step/STEPS*cv.width-1,0,2,cv.height);
+}
+function lineChart(title,vals,lo,hi,unit,bands,limit){
+  var W=330,H=104,pl=30,pr=8,pt=8,pb=16,iw=W-pl-pr,ih=H-pt-pb;
+  var xs=function(k){ return pl+k/STEPS*iw; }, ys=function(v){ return pt+ih-(v-lo)/(hi-lo)*ih; };
+  var out='';
+  (bands||[]).forEach(function(b){
+    out+='<rect x="'+pl+'" y="'+ys(b.to)+'" width="'+iw+'" height="'+Math.max(0,ys(b.from)-ys(b.to))+'" fill="color-mix(in srgb,var('+b.color+') 14%,transparent)"/>'+
+      '<line x1="'+pl+'" y1="'+ys(b.to)+'" x2="'+(W-pr)+'" y2="'+ys(b.to)+'" stroke="var('+b.color+')" stroke-dasharray="4 3"/>'+
+      '<text x="'+(pl-4)+'" y="'+(ys(b.to)+4)+'" text-anchor="end" font-size="9" fill="var(--ink-3)" font-family="var(--mono)">'+b.to+'</text>';
+  });
+  if(limit!==undefined) out+='<line x1="'+pl+'" y1="'+ys(limit)+'" x2="'+(W-pr)+'" y2="'+ys(limit)+'" stroke="var(--crit)" stroke-dasharray="4 3"/>'+
+    '<text x="'+(pl-4)+'" y="'+(ys(limit)+4)+'" text-anchor="end" font-size="9" fill="var(--ink-3)" font-family="var(--mono)">'+limit+'</text>';
+  out+='<text x="'+(pl-4)+'" y="'+(ys(hi)+8)+'" text-anchor="end" font-size="9" fill="var(--ink-3)" font-family="var(--mono)">'+hi+'</text>';
+  var d='';
+  for(var k=0;k<STEPS;k++) d+=(k?'L':'M')+xs(k)+' '+ys(Math.max(lo,Math.min(hi,vals[k])));
+  out+='<path d="'+d+'" fill="none" stroke="var(--s1)" stroke-width="2"/>'+
+    '<line x1="'+xs(step)+'" y1="'+pt+'" x2="'+xs(step)+'" y2="'+(pt+ih)+'" stroke="var(--ink)" stroke-width="1.5"/>'+
+    '<circle cx="'+xs(step)+'" cy="'+ys(Math.max(lo,Math.min(hi,vals[step])))+'" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>'+
+    '<text x="'+pl+'" y="'+(H-3)+'" font-size="9" fill="var(--ink-3)" font-family="var(--mono)">00:00</text>'+
+    '<text x="'+(W-pr)+'" y="'+(H-3)+'" text-anchor="end" font-size="9" fill="var(--ink-3)" font-family="var(--mono)">24:00</text>';
+  return '<div><h4>'+title+'</h4><svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" role="img" aria-label="'+title+'">'+out+'</svg></div>';
+}
+function renderSatDetail(){
+  var s=sats[selSat], slots=0;
+  for(var k=step;k<STEPS;k++) if(DL[selSat][k]) slots++;
+  $('#satDetail').innerHTML='<header><div><h3>'+s.id+'</h3><p>Две шкалы — две картинки: у заряда свой предел, у температуры свой.</p></div></header>'+
+    '<div class="mini">'+
+    lineChart('Заряд, % · резерв 30, критический 15',s.soc,0,100,'%',[{from:0,to:RESERVE,color:'--warn'},{from:0,to:CRITICAL,color:'--crit'}])+
+    lineChart('Температура, °C · предел 40',s.temp,0,45,'°C',null,40)+
+    '<dl class="dl"><dt>сейчас</dt><dd>'+ACT_NAME[s.act[step]]+'</dd>'+
+    '<dt>заряд</dt><dd>'+s.soc[step].toFixed(1)+' %</dd>'+
+    '<dt>температура</dt><dd>'+s.temp[step].toFixed(1)+' °C</dd>'+
+    '<dt>калибровка истекает через</dt><dd>'+Math.max(0,CAL_VALID-s.cal[step])+' шагов</dd>'+
+    '<dt>слотов связи впереди</dt><dd>'+slots+'</dd></dl></div>';
+}
+
+/* ================= jobs ================= */
+function jobStatus(job){
+  if(job.cert) return {cls:'cert',txt:'невыполнимо · сертификат'};
+  if(job.done!==null&&job.done<=step) return {cls:'good',txt:'выполнено'};
+  if(job.dead<=step) return {cls:'crit',txt:'просрочено'};
+  if(job.rel>step) return {cls:'',txt:'не выпущено'};
+  return {cls:'warn',txt:'в работе'};
+}
+function renderJobs(){
+  var list=jobs.filter(function(job){
+    var st=jobStatus(job);
+    if(jobFilter==='done') return st.cls==='good';
+    if(jobFilter==='missed') return st.cls==='crit'||st.cls==='cert';
+    if(jobFilter==='cert') return !!job.cert;
+    if(jobFilter==='p3') return job.pr===3;
+    return true;
+  });
+  var shown=list.slice(0,40);
+  if(selJob===null&&shown.length){
+    var first=shown.filter(function(j){ return j.cert&&j.cert.group; })[0]||shown.filter(function(j){ return j.cert; })[0]||shown[0];
+    selJob=jobs.indexOf(first);
+  }
+  $('#jobRows').innerHTML=shown.map(function(job){
+    var st=jobStatus(job), i=jobs.indexOf(job);
+    return '<tr data-j="'+i+'" aria-selected="'+(i===selJob)+'"><td class="id">'+job.id+'</td><td class="id">'+job.sat+'</td>'+
+      '<td>'+(job.kind==='downlink'?'связь':'релей')+'</td><td class="num">'+job.pr+'</td><td class="num">'+job.val.toFixed(2)+'</td>'+
+      '<td class="num">'+job.rel+'–'+job.dead+'</td><td class="num">'+job.work+'</td>'+
+      '<td><span class="chip '+st.cls+'">'+st.txt+'</span></td></tr>';
+  }).join('')||'<tr><td colspan="8" class="empty">Нет заданий под фильтр.</td></tr>';
+  $('#jobNote').textContent='Показано '+shown.length+' из '+list.length+' по фильтру · всего в смене '+TOTAL+' заданий · данные-моки.';
+  renderJobDetail();
+}
+function renderJobDetail(){
+  var el=$('#jobDetail');
+  if(selJob===null){ el.innerHTML='<p class="empty">Выберите задание.</p>'; return; }
+  var job=jobs[selJob], W=330, H=96, pl=8, pr=8, pt=22, iw=W-pl-pr;
+  var span=Math.max(1,job.dead-job.rel), cw=iw/span;
+  var xs=function(k){ return pl+(k-job.rel)*cw; };
+  var slots=[];
+  for(var k=job.rel;k<job.dead;k++) if(DL[job.si][k]) slots.push(k);
+  var out='<text x="'+pl+'" y="12" font-size="10" fill="var(--ink-3)" font-family="var(--mono)">окно: шаг '+job.rel+'</text>'+
+    '<text x="'+(W-pr)+'" y="12" text-anchor="end" font-size="10" fill="var(--ink-3)" font-family="var(--mono)">шаг '+job.dead+'</text>'+
+    '<rect x="'+pl+'" y="'+pt+'" width="'+iw+'" height="24" fill="var(--inset)" rx="2"/>';
+  slots.forEach(function(k){ out+='<rect x="'+(xs(k)+0.5)+'" y="'+pt+'" width="'+Math.max(2,cw-1)+'" height="24" fill="var(--s1)" rx="1"/>'; });
+  if(job.done!==null) out+='<circle cx="'+xs(job.done)+'" cy="'+(pt+12)+'" r="4" fill="var(--good)" stroke="var(--surface)" stroke-width="1.5"/>';
+  out+='<text x="'+pl+'" y="'+(pt+40)+'" font-size="10" fill="var(--ink-3)">требуется работы</text>';
+  for(var w=0;w<job.work;w++) out+='<rect x="'+(pl+w*15)+'" y="'+(pt+46)+'" width="13" height="13" fill="var(--s2)" rx="2"/>';
+  out+='<text x="'+(pl+job.work*15+6)+'" y="'+(pt+56)+'" font-size="10" fill="var(--ink-3)" font-family="var(--mono)">'+job.work+' шаг(а)</text>';
+  var verdict, vcls='';
+  if(job.cert&&job.cert.group){
+    var g=job.cert.group;
+    verdict='<b>Групповой сертификат (Холл).</b> Окна '+g.count+' downlink-заданий аппарата '+g.sat+' лежат внутри интервала '+g.from+'–'+g.to+'. По отдельности каждое выполнимо: слотов в окне хватает. Но суммарной работы '+g.work+' шагов при '+g.contacts+' контактах внутри интервала, поэтому минимум '+(g.work-g.contacts)+' шага работы не будет обслужено ни одним планировщиком.';
+  } else if(job.cert){
+    verdict='<b>Сертификат по окну.</b> В пересечении окна с расписанием контактов '+job.sat+' всего '+slots.length+' слот(ов), а работы требуется '+job.work+'. Ни одна последовательность действий задание не закрывает.';
+  } else if(job.done!==null&&job.done<=step){
+    verdict='Задание закрыто на шаге '+job.done+' ('+hhmm(job.done)+'). В окне было '+slots.length+' слотов при потребности '+job.work+'.';
+    vcls='ok';
+  } else {
+    verdict='В окне '+slots.length+' слотов при потребности '+job.work+' шагов, запас до срока '+(job.dead-step-job.work)+' шагов.';
+    vcls='ok';
+  }
+  el.innerHTML='<header><div><h3>'+job.id+' · '+job.sat+'</h3><p>Окно выполнения против фактического расписания контактов его аппарата.</p></div></header>'+
+    '<div class="proof"><svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" role="img" aria-label="Разбор задания '+job.id+'">'+out+'</svg>'+
+    '<div class="legend"><span><i style="background:var(--s1)"></i>слотов контакта в окне: '+slots.length+'</span><span><i style="background:var(--s2)"></i>требуется шагов: '+job.work+'</span>'+
+    (job.done!==null?'<span><i style="background:var(--good)"></i>закрыто на шаге '+job.done+'</span>':'')+'</div>'+
+    '<div class="verdict '+vcls+'">'+verdict+'</div>'+
+    '<dl class="dl"><dt>тип</dt><dd>'+job.kind+'</dd><dt>приоритет</dt><dd>'+job.pr+'</dd>'+
+    '<dt>стоимость</dt><dd>'+job.val.toFixed(2)+' $</dd>'+
+    '<dt>сертификат</dt><dd>'+(job.cert?(job.cert.group?'satellite_contacts_oversubscribed':'contact_window_shorter_than_work'):'—')+'</dd></dl></div>';
+}
+
+/* ================= grid ================= */
+function renderGrid(){
+  var cv=$('#gridCanvas'), cw=4, ch=11, gap=2, lab=34, top=18;
+  var W=lab+STEPS*cw, H=top+SATS*(ch+gap), dpr=Math.min(2,devicePixelRatio||1);
+  cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px';
+  var g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  var cols=ACT_VAR.map(cssv), line=cssv('--line'), ink3=cssv('--ink-3'), ink=cssv('--ink');
+  g.font='9px "IBM Plex Mono", monospace'; g.textBaseline='middle'; g.fillStyle=ink3;
+  for(var h=0;h<=24;h+=2){ var x=lab+h*12*cw; g.fillText(String(h).padStart(2,'0'),x+1,8); g.fillRect(x,13,1,3); }
+  for(var i=0;i<SATS;i++){
+    var y=top+i*(ch+gap), s=sats[i];
+    g.fillStyle=ink3; g.fillText(s.id,0,y+ch/2);
+    for(var k=0;k<STEPS;k++){
+      var x=lab+k*cw, a=s.act[k];
+      if(showWindows&&DL[i][k]){ g.fillStyle=line; g.fillRect(x,y,cw,ch); }
+      if(!a){ if(!(showWindows&&DL[i][k])){ g.fillStyle=cols[0]; g.fillRect(x,y+4,cw,3); } continue; }
+      g.globalAlpha=(k>step&&showPlan)?0.4:1; g.fillStyle=cols[a]; g.fillRect(x,y,cw,ch); g.globalAlpha=1;
+    }
+  }
+  g.fillStyle=ink; g.fillRect(lab+step*cw,top-5,1.5,SATS*(ch+gap));
+  cv.onmousemove=function(e){
+    var r=cv.getBoundingClientRect(), k=Math.floor((e.clientX-r.left-lab)/cw), i=Math.floor((e.clientY-r.top-top)/(ch+gap));
+    if(k<0||k>=STEPS||i<0||i>=SATS){ $('#gridRead').textContent='Наведите на клетку'; return; }
+    $('#gridRead').innerHTML='<b>'+sats[i].id+'</b> · шаг <b>'+k+'</b> · '+hhmm(k)+' · <b>'+ACT_NAME[sats[i].act[k]]+'</b> · '+(k>step?'план':'факт')+' · окно связи: '+(DL[i][k]?'да':'нет')+' · заряд '+sats[i].soc[k].toFixed(0)+'%';
+  };
+  cv.onclick=function(e){
+    var r=cv.getBoundingClientRect(), k=Math.floor((e.clientX-r.left-lab)/cw);
+    if(k>=0&&k<=STEPS) setStep(k);
+  };
+}
+
+/* ================= comparison ================= */
+function renderCmp(){
+  var rows=[
+    ['заданий приоритета 3 в срок',315,287,'больше'],
+    ['выручка, $',27407,29112,'больше'],
+    ['завершено заданий',1164,1151,'больше'],
+    ['просрочено заданий',44,57,'меньше'],
+    ['работа впустую, шагов',0,0,'меньше'],
+    ['аппарато-шагов ниже резерва',6,6,'меньше'],
+    ['отклонённых команд',0,0,'меньше']
+  ];
+  $('#cmpRows').innerHTML=rows.map(function(r){
+    var a=r[1],b=r[2],d=b-a,cls='flat',txt='равнозначно';
+    if(d!==0){ cls=((d>0)===(r[3]==='больше'))?'up':'down'; txt=(d>0?'+':'−')+Math.abs(d).toLocaleString('ru-RU')+' у B'; }
+    return '<tr><td>'+r[0]+'</td><td class="num">'+a.toLocaleString('ru-RU')+'</td><td class="num">'+b.toLocaleString('ru-RU')+'</td><td class="num '+cls+'">'+txt+'</td></tr>';
+  }).join('');
+}
+
+/* ================= ribbon ================= */
+var EVENTS=[
+  {k:42,kind:'jobs',t:'add_jobs · 18'},
+  {k:96,kind:'goal',t:'цель → приоритет'},
+  {k:137,kind:'close',t:'close_downlink S09–S11'},
+  {k:174,kind:'outage',t:'satellite_outage S07'},
+  {k:228,kind:'jobs',t:'add_jobs · 6'}
+];
+function renderRibbon(){
+  var tr=$('#track');
+  tr.querySelectorAll('.evt').forEach(function(e){ e.remove(); });
+  EVENTS.forEach(function(ev,n){
+    var b=document.createElement('button'), pos=ev.k/STEPS*100;
+    b.className='evt'+(pos>72?' flip':''); b.dataset.kind=ev.kind; b.dataset.row=n%2;
+    b.style.left=pos+'%'; if(pos>72){ b.style.left='auto'; b.style.right=(100-pos)+'%'; }
+    b.innerHTML='<em>'+ev.t+'</em><span></span>';
+    b.title='шаг '+ev.k+' · '+hhmm(ev.k);
+    b.onclick=function(){ setStep(ev.k); };
+    tr.appendChild(b);
+  });
+  $('#trackDone').style.width=(step/STEPS*100)+'%';
+}
+
+/* ================= wiring ================= */
+function setStep(k){
+  step=Math.max(0,Math.min(STEPS,k));
+  $('#stepRange').value=step; $('#stepNum').textContent=step; $('#stepClock').textContent=hhmm(step);
+  $('#trackDone').style.width=(step/STEPS*100)+'%';
+  renderTiles(); renderArea(); renderDl(); renderSats(); renderJobs(); renderGrid();
+}
+$('#stepRange').addEventListener('input',function(e){ setStep(+e.target.value); });
+$('#back1').onclick=function(){ setStep(step-1); };
+$('#fwd1').onclick=function(){ setStep(step+1); };
+$('#fwd12').onclick=function(){ setStep(step+12); };
+$('#fwdEnd').onclick=function(){ setStep(STEPS); };
+$('#mkFork').onclick=function(){
+  $('#ribbonHint').textContent='Ветвь создана из шага '+step+'. Сравнение — на вкладке «Ветви».';
+  document.querySelector('[data-tab="branch"]').click();
+};
+function setGoal(g){
+  $('#goal-p').setAttribute('aria-pressed',g==='priority');
+  $('#goal-r').setAttribute('aria-pressed',g==='revenue');
+  $('#ribbonHint').textContent='Цель переключена на границе шага '+step+': '+(g==='priority'?'приоритет':'выручка')+'. Расписание связи пересчитано.';
+}
+$('#goal-p').onclick=function(){ setGoal('priority'); };
+$('#goal-r').onclick=function(){ setGoal('revenue'); };
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){ x.setAttribute('aria-selected',x===b); });
+    ['shift','sats','jobs','grid','branch'].forEach(function(t){ $('#p-'+t).hidden=(t!==b.dataset.tab); });
+    if(b.dataset.tab==='shift'){ renderArea(); renderDl(); }
+    if(b.dataset.tab==='grid') renderGrid();
+  };
+});
+$('#satRows').addEventListener('click',function(e){
+  var tr=e.target.closest('tr[data-i]'); if(!tr) return;
+  selSat=+tr.dataset.i; renderSats();
+});
+$('#satSearch').addEventListener('input',function(e){ satQuery=e.target.value.trim().toLowerCase(); renderSats(); });
+$('#satOnlyIssues').onclick=function(){ satIssuesOnly=!satIssuesOnly; this.setAttribute('aria-pressed',satIssuesOnly); renderSats(); };
+$('#jobRows').addEventListener('click',function(e){
+  var tr=e.target.closest('tr[data-j]'); if(!tr) return;
+  selJob=+tr.dataset.j; renderJobs();
+});
+$('#jobFilters').addEventListener('click',function(e){
+  var b=e.target.closest('.pill'); if(!b) return;
+  jobFilter=b.dataset.f; selJob=null;
+  $('#jobFilters').querySelectorAll('.pill').forEach(function(x){ x.setAttribute('aria-pressed',x===b); });
+  renderJobs();
+});
+$('#gridWindows').onclick=function(){ showWindows=!showWindows; this.setAttribute('aria-pressed',showWindows); renderGrid(); renderSats(); };
+$('#gridPlan').onclick=function(){ showPlan=!showPlan; this.setAttribute('aria-pressed',showPlan); renderGrid(); renderSats(); };
+
+var pending=0;
+function reflow(){ cancelAnimationFrame(pending); pending=requestAnimationFrame(function(){ renderArea(); renderDl(); }); }
+addEventListener('resize',reflow);
+if(window.ResizeObserver) new ResizeObserver(reflow).observe(document.querySelector('main .wrap'));
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(reflow);
+
+renderRibbon(); renderCmp(); setStep(step);
+})();
+</script>

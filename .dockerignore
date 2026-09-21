@@ -1,0 +1,20 @@
+# Everything the image does not need. The interface is built inside the image,
+# so node_modules and a local dist are never copied in.
+.git/
+.github/
+.claude/
+.pytest_cache/
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+frontend/node_modules/
+frontend/dist/
+docs/
+exports/
+tests/
+архив/
+*.md
+!README.md
+.env

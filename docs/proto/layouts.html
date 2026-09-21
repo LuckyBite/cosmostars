@@ -1,0 +1,349 @@
+<title>Раскладки пульта смены</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --paper:#f1f0ed; --panel:#f8f8f6; --rule:#d2d0ca; --rule-soft:#e2e0da;
+  --ink:#17191c; --ink-2:#4a4d52; --ink-3:#7d8087;
+  --box:#e4e3de; --box-2:#d3d2cc; --box-line:#c9c7c1; --wf-ink:#5c5f65;
+  --signal:#2b4a7d;
+  --grot:"Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --paper:#15171a; --panel:#1b1e22; --rule:#2e3237; --rule-soft:#24272c;
+    --ink:#eceef0; --ink-2:#aeb2b8; --ink-3:#7f848b;
+    --box:#24282d; --box-2:#2e333a; --box-line:#343a41; --wf-ink:#9aa0a8;
+    --signal:#8fb0e0;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --paper:#15171a; --panel:#1b1e22; --rule:#2e3237; --rule-soft:#24272c;
+  --ink:#eceef0; --ink-2:#aeb2b8; --ink-3:#7f848b;
+  --box:#24282d; --box-2:#2e333a; --box-line:#343a41; --wf-ink:#9aa0a8;
+  --signal:#8fb0e0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:24px;padding-block:0}
+@media (max-width:520px){.wrap{padding-inline:16px}}
+h1,h2,h3,h4{margin:0;font-family:var(--grot);font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+p{margin:0}
+.lede{max-width:64ch;color:var(--ink-2)}
+.eyebrow{font-family:var(--grot);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3)}
+
+header.page{border-bottom:1px solid var(--rule)}
+header.page .wrap{padding-block:34px 22px;display:flex;flex-direction:column;gap:10px}
+header.page h1{font-size:clamp(24px,3.4vw,34px)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:4px}
+.meta span{display:inline-flex;gap:6px}
+.meta b{color:var(--ink-2);font-weight:400}
+
+section.block{border-bottom:1px solid var(--rule)}
+section.block>.wrap{padding-block:30px 34px;display:flex;flex-direction:column;gap:20px}
+.head-row{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between}
+.head-row h2{font-size:17px}
+.head-row p{font-size:13px;color:var(--ink-3);max-width:58ch}
+
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:26px 24px}
+figure{margin:0;display:flex;flex-direction:column;gap:9px}
+figcaption{display:flex;flex-direction:column;gap:3px}
+figcaption .t{font-family:var(--grot);font-weight:600;font-size:14px;display:flex;gap:9px;align-items:baseline}
+figcaption .t i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--signal);font-weight:400}
+figcaption .d{font-size:13px;color:var(--ink-2)}
+.tradeoff{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12px;font-family:var(--grot);color:var(--ink-2)}
+.tradeoff dt{color:var(--ink-3);text-transform:uppercase;font-size:9.5px;letter-spacing:.1em;padding-top:3px}
+
+.wf{aspect-ratio:8/5;background:var(--panel);border:1px solid var(--rule);padding:6px;display:grid;gap:5px;position:relative}
+.wf *{min-width:0;min-height:0}
+.b{background:var(--box);border:1px solid var(--box-line);display:flex;align-items:center;justify-content:center;
+   font-family:var(--grot);font-size:8.5px;line-height:1.25;letter-spacing:.06em;text-transform:uppercase;
+   color:var(--wf-ink);text-align:center;padding:2px 3px;overflow:hidden}
+.b.hi{background:var(--box-2)}
+.b.dash{background:transparent;border-style:dashed}
+.b.plain{background:transparent;border:0;color:var(--ink-3)}
+.r{display:grid;gap:5px}
+.cursor{position:absolute;top:6px;bottom:6px;width:1px;background:var(--signal);opacity:.8}
+.rows-lines{display:grid;grid-template-columns:1fr;justify-content:stretch;align-content:start;gap:3px;padding:4px}
+.rows-lines i{display:block;height:5px;background:var(--wf-ink);opacity:.5}
+.rows-lines i:nth-child(odd){opacity:.3}
+
+.tone{border:1px solid var(--rule);display:flex;flex-direction:column}
+.tone .swatch{padding:11px 12px 13px;display:flex;flex-direction:column;gap:8px;font-family:var(--t-sans)}
+.tone .sw-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.tone .sw-name{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--t-ink3)}
+.tone .sw-val{font-family:var(--t-mono);font-size:19px;color:var(--t-ink)}
+.tone .sw-val small{font-size:11px;color:var(--t-ink3)}
+.tone .bars{display:flex;align-items:flex-end;gap:2px;height:44px}
+.tone .bars i{flex:1;background:var(--t-acc);opacity:.85}
+.tone .sw-rows{display:grid;gap:0;font-family:var(--t-mono);font-size:10.5px;color:var(--t-ink2)}
+.tone .sw-rows div{display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--t-rule)}
+.tone .sw-rows div b{color:var(--t-ink);font-weight:400}
+.tone .desc{padding:11px 12px;border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:6px}
+.tone .desc b{font-family:var(--grot);font-size:13px}
+.tone .desc ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--ink-2);display:grid;gap:3px}
+.t-graphite{--t-bg:#14161a;--t-ink:#e9ebee;--t-ink2:#a5aab1;--t-ink3:#787d85;--t-rule:#272b31;--t-acc:#4b7fc4;--t-sans:var(--grot);--t-mono:var(--mono)}
+.t-spec{--t-bg:#faf9f6;--t-ink:#14161a;--t-ink2:#494c51;--t-ink3:#7f8288;--t-rule:#dcdad4;--t-acc:#2b4a7d;--t-sans:var(--grot);--t-mono:var(--mono)}
+.t-term{--t-bg:#0c0d0f;--t-ink:#e6e2d8;--t-ink2:#a8a49a;--t-ink3:#74716a;--t-rule:#20221f;--t-acc:#c8912f;--t-sans:var(--mono);--t-mono:var(--mono)}
+.tone .swatch{background:var(--t-bg)}
+
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:1px;background:var(--rule)}
+.rule-item{background:var(--panel);padding:14px 15px;display:flex;flex-direction:column;gap:5px}
+.rule-item .n{font-family:var(--mono);font-size:11px;color:var(--signal)}
+.rule-item b{font-family:var(--grot);font-size:13.5px;font-weight:600}
+.rule-item p{font-size:13px;color:var(--ink-2)}
+.rule-item s{color:var(--ink-3);text-decoration-color:var(--ink-3)}
+footer.page .wrap{padding-block:26px 44px;display:flex;flex-direction:column;gap:8px}
+footer.page p{font-size:13px;color:var(--ink-3);max-width:66ch}
+</style>
+
+<header class="page">
+  <div class="wrap">
+    <p class="eyebrow">Космохакатон · автономное управление группировкой</p>
+    <h1>Раскладки пульта смены</h1>
+    <p class="lede">Пять вариантов одного и того же содержимого: сутки смены, 48 аппаратов, задания, доказательства невыполнимости, сравнение ветвей. Без данных и без графики — только где что лежит, чтобы выбрать глазами. Ниже — три варианта тона и список того, чем отличается взрослый инструмент от шаблонного дашборда.</p>
+    <div class="meta">
+      <span>масштаб <b>схема</b></span>
+      <span>данных <b>нет</b></span>
+      <span>выбрать <b>одну раскладку и один тон</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="block">
+  <div class="wrap">
+    <div class="head-row">
+      <h2>Пять раскладок</h2>
+      <p>Синяя черта в схемах — курсор шага смены: общий для всех панелей, где он показан.</p>
+    </div>
+    <div class="grid-2">
+
+      <figure>
+        <div class="wf" style="grid-template-rows:15px 20px 11px 24px 1fr 1fr">
+          <div class="b hi">шапка · смена · цель · шаг</div>
+          <div class="b">ось суток · сообщения</div>
+          <div class="b dash">вкладки</div>
+          <div class="r" style="grid-template-columns:repeat(6,1fr)">
+            <div class="b">показ.</div><div class="b">показ.</div><div class="b">показ.</div>
+            <div class="b">показ.</div><div class="b">показ.</div><div class="b">показ.</div>
+          </div>
+          <div class="b">график занятости группировки</div>
+          <div class="b">график дефицита связи</div>
+          <div class="cursor" style="left:48%"></div>
+        </div>
+        <figcaption>
+          <div class="t">Стопка<i>A</i></div>
+          <div class="d">Карточки в один столбик, экраны разведены по вкладкам. Это то, что я собрал первым.</div>
+          <dl class="tradeoff">
+            <dt>за</dt><dd>быстро делается, нормально на телефоне</dd>
+            <dt>против</dt><dd>читается как шаблон дашборда, аппараты и задания не видны одновременно</dd>
+          </dl>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <div class="wf" style="grid-template-rows:15px 18px 1fr">
+          <div class="b hi">шапка · смена · цель · шаг</div>
+          <div class="b">ось суток · сообщения</div>
+          <div class="r" style="grid-template-columns:80px 1fr 104px">
+            <div class="rows-lines b" style="display:grid">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <div class="r" style="grid-template-rows:1fr 30px">
+              <div class="b">полотно расписания</div>
+              <div class="b">дефицит связи</div>
+            </div>
+            <div class="b">разбор выбранного</div>
+          </div>
+          <div class="cursor" style="left:56%"></div>
+        </div>
+        <figcaption>
+          <div class="t">Рабочая станция<i>B</i></div>
+          <div class="d">Постоянный рельс аппаратов слева, полотно в центре, разбор справа. Вкладок нет, всё на одном экране.</div>
+          <dl class="tradeoff">
+            <dt>за</dt><dd>выглядит как настоящий пульт, ничего не теряется при переключении</dd>
+            <dt>против</dt><dd>требует широкого экрана и аккуратной плотности</dd>
+          </dl>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <div class="wf" style="grid-template-rows:15px 18px 1fr 1fr">
+          <div class="b hi">шапка · смена · цель · шаг</div>
+          <div class="b">ось суток · сообщения</div>
+          <div class="r" style="grid-template-columns:1fr 132px">
+            <div class="b">обзор смены одним полотном</div>
+            <div class="r" style="grid-template-rows:repeat(3,1fr)">
+              <div class="b">показатель</div><div class="b">показатель</div><div class="b">показатель</div>
+            </div>
+          </div>
+          <div class="r" style="grid-template-columns:1fr 104px">
+            <div class="rows-lines b" style="display:grid">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <div class="b">разбор</div>
+          </div>
+          <div class="cursor" style="left:41%"></div>
+        </div>
+        <figcaption>
+          <div class="t">Обзор и деталь<i>C</i></div>
+          <div class="d">Верх — вся смена сразу, низ — список и разбор. Курсор шага один для обеих зон.</div>
+          <dl class="tradeoff">
+            <dt>за</dt><dd>жюри сначала видит картину целиком, потом доказательство</dd>
+            <dt>против</dt><dd>по вертикали тесно, обзор придётся резать</dd>
+          </dl>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <div class="wf" style="grid-template-rows:15px 18px 11px 1fr">
+          <div class="b hi">шапка · смена · цель · шаг</div>
+          <div class="b">ось суток · сообщения</div>
+          <div class="b dash">фильтры</div>
+          <div class="r" style="grid-template-columns:1fr 124px">
+            <div class="rows-lines b" style="display:grid">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <div class="r" style="grid-template-rows:64px 1fr">
+              <div class="b hi">доказательство</div>
+              <div class="b">поля записи</div>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          <div class="t">Инспектор<i>D</i></div>
+          <div class="d">Главное — список заданий и аппаратов, справа закреплён инспектор с сертификатом и причиной отказа.</div>
+          <dl class="tradeoff">
+            <dt>за</dt><dd>прямо бьёт в отраслевые критерии: на любой вопрос «почему» есть строка и доказательство</dd>
+            <dt>против</dt><dd>смена целиком не видна, графики уезжают на второй план</dd>
+          </dl>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <div class="wf" style="grid-template-columns:1fr minmax(0,2.1fr) 1fr;grid-template-rows:1fr">
+          <div class="b plain"></div>
+          <div class="r" style="grid-template-rows:13px 22px 1fr 40px 34px">
+            <div class="b plain" style="justify-content:flex-start">разбор смены</div>
+            <div class="r" style="grid-template-columns:repeat(3,1fr)">
+              <div class="b">показ.</div><div class="b">показ.</div><div class="b">показ.</div>
+            </div>
+            <div class="b">один график, который всё объясняет</div>
+            <div class="b">сертификат невыполнимости</div>
+            <div class="b">baseline против нашего</div>
+          </div>
+          <div class="b plain"></div>
+        </div>
+        <figcaption>
+          <div class="t">Брифинг<i>E</i></div>
+          <div class="d">Не пульт, а документ: узкая колонка, которую читают сверху вниз. Отдельный экран под защиту, в дополнение к любому из A–D.</div>
+          <dl class="tradeoff">
+            <dt>за</dt><dd>выигрывает на проекторе, живёт как ссылка в презентации</dd>
+            <dt>против</dt><dd>оператором не управляют, поэтому только как второй экран</dd>
+          </dl>
+        </figcaption>
+      </figure>
+
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="head-row">
+      <h2>Три тона</h2>
+      <p>Один и тот же фрагмент — заголовок показателя, полоса значений, две строки таблицы. Тон не зависит от раскладки: выбирается отдельно.</p>
+    </div>
+    <div class="grid-2">
+
+      <div class="tone t-graphite">
+        <div class="swatch">
+          <div class="sw-top"><span class="sw-name">передач занято</span><span class="sw-val">387<small> / 458</small></span></div>
+          <div class="bars"><i style="height:40%"></i><i style="height:72%"></i><i style="height:55%"></i><i style="height:88%"></i><i style="height:34%"></i><i style="height:64%"></i><i style="height:96%"></i><i style="height:48%"></i><i style="height:76%"></i><i style="height:58%"></i></div>
+          <div class="sw-rows">
+            <div><span>S17 · шаг 137</span><b>downlink</b></div>
+            <div><span>S09 · шаг 137</span><b>простой</b></div>
+          </div>
+        </div>
+        <div class="desc">
+          <b>Графит</b>
+          <ul>
+            <li>нейтральный тёмный фон, один сигнальный синий</li>
+            <li>цифры моноширинные, подписи гротеском в один вес</li>
+            <li>разделители — волосяные линии, ни рамок, ни теней</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tone t-spec">
+        <div class="swatch">
+          <div class="sw-top"><span class="sw-name">передач занято</span><span class="sw-val">387<small> / 458</small></span></div>
+          <div class="bars"><i style="height:40%"></i><i style="height:72%"></i><i style="height:55%"></i><i style="height:88%"></i><i style="height:34%"></i><i style="height:64%"></i><i style="height:96%"></i><i style="height:48%"></i><i style="height:76%"></i><i style="height:58%"></i></div>
+          <div class="sw-rows">
+            <div><span>S17 · шаг 137</span><b>downlink</b></div>
+            <div><span>S09 · шаг 137</span><b>простой</b></div>
+          </div>
+        </div>
+        <div class="desc">
+          <b>Спецификация</b>
+          <ul>
+            <li>светлая бумага, глубокий чернильный акцент</li>
+            <li>линованные таблицы вместо плиток и заливок</li>
+            <li>читается как инженерный документ, а не как веб-панель</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tone t-term">
+        <div class="swatch">
+          <div class="sw-top"><span class="sw-name">передач занято</span><span class="sw-val">387<small> / 458</small></span></div>
+          <div class="bars"><i style="height:40%"></i><i style="height:72%"></i><i style="height:55%"></i><i style="height:88%"></i><i style="height:34%"></i><i style="height:64%"></i><i style="height:96%"></i><i style="height:48%"></i><i style="height:76%"></i><i style="height:58%"></i></div>
+          <div class="sw-rows">
+            <div><span>S17 · шаг 137</span><b>downlink</b></div>
+            <div><span>S09 · шаг 137</span><b>простой</b></div>
+          </div>
+        </div>
+        <div class="desc">
+          <b>Терминал</b>
+          <ul>
+            <li>моноширинный шрифт во всём интерфейсе, плотная сетка</li>
+            <li>почти монохром, янтарь только на данных</li>
+            <li>сильный характер, но легко скатывается в стилизацию</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="head-row">
+      <h2>Чем поднимается уровень</h2>
+      <p>Почти всё здесь — вычитание. Дорого выглядит не то, что добавили, а то, от чего отказались.</p>
+    </div>
+    <div class="rules">
+      <div class="rule-item"><span class="n">01</span><b>Убрать карточки</b><p>Рамка, радиус, заливка и тень — четыре способа сказать «отдельный объект». Волосяная линия и воздух говорят то же тише. <s>Скругления 8px на каждом блоке.</s></p></div>
+      <div class="rule-item"><span class="n">02</span><b>Один сигнальный цвет</b><p>Цвет работает только в данных: тип действия, статус. Интерфейс — нейтрали. Радуга на кнопках и вкладках сразу выдаёт шаблон.</p></div>
+      <div class="rule-item"><span class="n">03</span><b>Плотность как у инструмента</b><p>Строка таблицы 22–24 px, не 40. Оператор смотрит в это восемь часов и хочет видеть 30 строк, а не шесть.</p></div>
+      <div class="rule-item"><span class="n">04</span><b>Цифры как в приборе</b><p>Табличные знаки, единицы у каждого числа, точность по смыслу: заряд 31,4 %, шаг 137, слотов 5. Не «31.44444».</p></div>
+      <div class="rule-item"><span class="n">05</span><b>Асимметрия вместо колонки</b><p>Постоянный рельс слева и рабочее полотно — раскладка настоящего ПО. Центрованная колонка карточек — раскладка лендинга.</p></div>
+      <div class="rule-item"><span class="n">06</span><b>Заглавные — только на микрометках</b><p>Разрядка и капс на каждом заголовке читаются как презентационный шаблон. Оставить их для десятипиксельных ярлыков.</p></div>
+      <div class="rule-item"><span class="n">07</span><b>Ни градиентов, ни свечения, ни блюра</b><p>Тень допустима только под тем, что действительно висит над страницей: подсказка, меню.</p></div>
+      <div class="rule-item"><span class="n">08</span><b>Статус — метка, а не пилюля</b><p>Точка, тонкая полоса слева от строки, короткое слово. Большие цветные капсулы в каждой ячейке превращают таблицу в конфетти.</p></div>
+      <div class="rule-item"><span class="n">09</span><b>Слова из отрасли</b><p>«Слот контакта», «аппарато-шаг», «сертификат невыполнимости», «калибровка действительна 96 шагов». Это и есть отличие своего от универсального.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer class="page">
+  <div class="wrap">
+    <p class="eyebrow">дальше</p>
+    <p>Выбираем букву и тон — и я собираю выбранное как рабочий прототип: раскладку на моках, потом на живом API. Первый прототип, который уже есть, — это вариант A в графите.</p>
+  </div>
+</footer>
