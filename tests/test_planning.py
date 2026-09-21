@@ -6,6 +6,7 @@ import collections
 import pytest
 
 from backend.app.core import scenarios
+from backend.app.core.errors import BadRequest
 from backend.app.core.run import Run
 from backend.app.planner import feasibility
 
@@ -86,5 +87,5 @@ def test_goals_trade_priority_against_revenue_under_overload():
 def test_advance_never_recomputes_history():
     run = make_run()
     run.advance(5)
-    with pytest.raises(Exception):
+    with pytest.raises(BadRequest, match='never recomputed'):
         run.advance_to(2)

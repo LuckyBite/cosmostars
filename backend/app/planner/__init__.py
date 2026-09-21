@@ -25,5 +25,16 @@ def build_planner(name: str, goal: str, **parameters) -> Planner:
     return PLANNERS[name](goal=check_goal(goal), **parameters)
 
 
-__all__ = ['GOALS', 'PLANNERS', 'DEFAULT_PLANNER', 'Planner', 'StepPlan', 'StepView',
-           'EDFPlanner', 'SmartPlanner', 'build_planner', 'check_goal', 'job_score']
+__all__ = [
+    'DEFAULT_PLANNER',
+    'GOALS',
+    'PLANNERS',
+    'EDFPlanner',
+    'Planner',
+    'SmartPlanner',
+    'StepPlan',
+    'StepView',
+    'build_planner',
+    'check_goal',
+    'job_score',
+]

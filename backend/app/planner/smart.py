@@ -94,10 +94,7 @@ class SmartPlanner(Planner):
         """True when a committed downlink would fall outside the calibration window."""
         expires_at = view.step + (valid_for - age)
         horizon = min(expires_at + self.calibration_lead, view.total_steps)
-        for k in range(expires_at, horizon):
-            if schedule.job_for(sid, k) is not None:
-                return True
-        return False
+        return any(schedule.job_for(sid, k) is not None for k in range(expires_at, horizon))
 
     def _place_relay(self, view: StepView, plan: StepPlan) -> None:
         """Fill the remaining satellite time with the most valuable relay work."""
@@ -149,4 +146,4 @@ def critical_share(summary: dict[str, Any]) -> float | None:
     return summary.get('critical_jobs_completed_on_time', 0) / due
 
 
-__all__ = ['SmartPlanner', 'critical_share', 'CRITICAL_PRIORITY', 'UNREACHABLE_RELAY']
+__all__ = ['CRITICAL_PRIORITY', 'UNREACHABLE_RELAY', 'SmartPlanner', 'critical_share']

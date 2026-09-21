@@ -1,0 +1,42 @@
+# Инструменты проверки. Ничего не собирается: пакет не публикуется, точки входа
+# описаны в README, а этот файл нужен ruff и mypy.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Выданная библиотека используется как есть: правила стиля к ней не применяются,
+# потому что менять её мы не имеем права.
+extend-exclude = ["model", "архив", "frontend"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes: неиспользованное, опечатки в именах
+    "I",         # порядок импортов
+    "B",         # bugbear: ловушки вроде изменяемых значений по умолчанию
+    "UP",        # устаревшие конструкции
+    "C4",        # лишние comprehension
+    "RET",       # возвраты, которые можно упростить
+    "SIM",       # очевидные упрощения
+    "RUF",       # собственные правила ruff
+]
+ignore = [
+    # Комментарии и сообщения оператору по-русски: правило про «похожие» символы
+    # ловит кириллицу и ничего полезного здесь не скажет.
+    "RUF001", "RUF002", "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["backend"]
+# Выданная библиотека без аннотаций, и это не наша забота.
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+no_implicit_optional = true
+check_untyped_defs = true

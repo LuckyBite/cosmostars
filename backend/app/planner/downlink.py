@@ -83,9 +83,9 @@ class _Network:
                 pair_node = self.pair_base + self.pair_index[(sid, k)]
                 edge_id = net.add_edge(node, pair_node, 1)
                 job_edges[job_id].append((edge_id, k))
-        for (sid, k), i in self.pair_index.items():
+        for (_sid, k), i in self.pair_index.items():
             net.add_edge(self.pair_base + i, self.step_base + self.step_index[k], 1)
-        for k, i in self.step_index.items():
+        for _k, i in self.step_index.items():
             net.add_edge(self.step_base + i, self.sink, self.step_limit)
         served = net.run(self.source, self.sink)
         assignment = {job['id']: [k for edge_id, k in job_edges[job['id']]
@@ -154,7 +154,7 @@ def build_schedule(view: StepView, goal: str,
     need = 0
     assignment: dict[str, list[int]] = {}
     for job in ordered:
-        trial_jobs = chosen + [job]
+        trial_jobs = [*chosen, job]
         served, trial = network.solve(trial_jobs)
         if served == need + job['remaining_steps']:
             chosen, need, assignment = trial_jobs, served, trial

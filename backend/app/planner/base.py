@@ -112,8 +112,13 @@ class Planner(ABC):
         """Goal may change at a step boundary; it only affects later steps."""
         self.goal = check_goal(goal)
 
-    def on_event(self, event: dict[str, Any], view: StepView) -> None:
-        """Hook for planners that keep a precomputed schedule."""
+    def on_event(self, event: dict[str, Any], view: StepView) -> None:  # noqa: B027
+        """Hook for planners that keep a precomputed schedule.
+
+        Deliberately not abstract and deliberately empty: a planner that decides
+        everything on the step has nothing to invalidate, and forcing it to
+        write an empty override would say the opposite.
+        """
 
     @abstractmethod
     def plan(self, view: StepView) -> dict[str, Action]:

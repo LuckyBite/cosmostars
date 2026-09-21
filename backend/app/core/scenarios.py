@@ -10,10 +10,10 @@ import collections
 import json
 from typing import Any
 
+from model.resource_env import validate
+
 from . import config
 from .errors import BadRequest
-
-from model.resource_env import validate  # noqa: E402  (needs config's sys.path)
 
 _uploaded: dict[str, dict[str, Any]] = {}
 

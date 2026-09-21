@@ -227,3 +227,45 @@ def test_an_oversized_body_is_refused_before_it_is_parsed(client: TestClient):
     # A legitimate export stays well inside the limit and still verifies.
     export = client.get(f'/api/runs/{run_to(client, 48, "P01_intro")}/result').json()
     assert client.post('/api/verify', json={'result': export}).json()['verdict'] == 'reproduced'
+
+
+def test_greedy_relay_leaves_nothing_on_the_table_on_the_daily_shift(client: TestClient):
+    """The claim about relay, which is the one part solved heuristically.
+
+    Two independent measurements have to agree: the relaxed flow bound says the
+    shift could not have served more relay work, and the opportunity count says
+    no satellite sat idle while it could have worked. If either moves, the README
+    is overstating the planner.
+    """
+    from backend.app.core import scenarios
+    from backend.app.core.run import Run
+    from backend.app.planner import bound
+
+    for key in ('P02_shift', 'P03_energy'):
+        run = Run(scenarios.get(key), key, planner_name='cosmostars', goal='priority')
+        ceiling = bound.work_ceiling(run.view, ('relay',))['work_steps_schedulable']
+        run.advance_to(run.total_steps)
+        facts = bound.spent(run)
+        assert facts['useful']['relay'] == ceiling, f'{key}: {facts["useful"]["relay"]}/{ceiling}'
+        assert facts['wasted']['relay'] == 0
+        assert bound.missed_capacity(run, 'relay')['missed_satellite_steps'] == 0
+
+
+def test_the_relay_bound_never_promises_less_than_the_shift_achieved(client: TestClient):
+    """A bound below the actual result would mean the bound is wrong.
+
+    P04 is where the heuristic does lose work, so it is the case worth pinning:
+    the bound must stay above what happened, and the opportunity count must stay
+    below the bound's gap — otherwise the two measurements contradict each other.
+    """
+    from backend.app.core import scenarios
+    from backend.app.core.run import Run
+    from backend.app.planner import bound
+
+    run = Run(scenarios.get('P04_demand'), 'P04_demand', planner_name='cosmostars', goal='priority')
+    ceiling = bound.work_ceiling(run.view, ('relay',))['work_steps_schedulable']
+    run.advance_to(run.total_steps)
+    useful = bound.spent(run)['useful']['relay']
+    missed = bound.missed_capacity(run, 'relay')['missed_satellite_steps']
+    assert useful <= ceiling
+    assert 0 < missed <= ceiling - useful

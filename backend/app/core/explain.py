@@ -22,9 +22,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .errors import NotFound
 from ..planner import downlink, feasibility
 from ..planner.smart import SmartPlanner
+from .errors import NotFound
 
 if TYPE_CHECKING:  # pragma: no cover - the cycle only matters for type checkers
     from .run import Run
@@ -51,7 +51,7 @@ def _certificate(view: Any, job: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-def _competition(run: 'Run', job: dict[str, Any]) -> dict[str, Any] | None:
+def _competition(run: Run, job: dict[str, Any]) -> dict[str, Any] | None:
     """Who holds the contacts this job needed, and what taking them back costs."""
     if job['kind'] != 'downlink' or not isinstance(run.planner, SmartPlanner):
         return None
@@ -88,7 +88,7 @@ def _competition(run: 'Run', job: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def _counterfactual(run: 'Run', job: dict[str, Any],
+def _counterfactual(run: Run, job: dict[str, Any],
                     schedule: downlink.DownlinkSchedule) -> dict[str, Any] | None:
     """Re-solve the schedule with this job forced in; report what falls out.
 
@@ -116,10 +116,11 @@ def _counterfactual(run: 'Run', job: dict[str, Any],
     }
 
 
-def _from_log(run: 'Run', job: dict[str, Any]) -> tuple[list[dict[str, Any]],
+def _from_log(run: Run, job: dict[str, Any]) -> tuple[list[dict[str, Any]],
                                                         list[dict[str, Any]]]:
     """Rows of the execution log that name this job: refused and progressed."""
-    refused, worked = [], []
+    refused: list[dict[str, Any]] = []
+    worked: list[dict[str, Any]] = []
     for row in run.session.env.trace:
         requested = row.get('requested') or {}
         if requested.get('job_id') != job['id']:
@@ -130,7 +131,7 @@ def _from_log(run: 'Run', job: dict[str, Any]) -> tuple[list[dict[str, Any]],
     return refused[:MAX_ROWS], worked[:MAX_ROWS]
 
 
-def _instead(run: 'Run', job: dict[str, Any]) -> dict[str, Any]:
+def _instead(run: Run, job: dict[str, Any]) -> dict[str, Any]:
     """What the eligible satellites were doing across this job's window."""
     lo, hi = job['release_step'], min(job['deadline_step'], run.step)
     eligible = set(job['eligible_satellites'])
@@ -169,7 +170,7 @@ def _verdict(job: dict[str, Any], step: int, certificate: dict[str, Any] | None,
     return 'open'
 
 
-def explain(run: 'Run', job_id: str) -> dict[str, Any]:
+def explain(run: Run, job_id: str) -> dict[str, Any]:
     """Everything the service can prove about the fate of one job."""
     run.view.refresh()
     job = run.view.job(job_id)

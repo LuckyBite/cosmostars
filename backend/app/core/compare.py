@@ -49,16 +49,19 @@ def _comparability(left: Run, right: Run) -> dict[str, Any]:
         if run.parent_id == other.id:
             shared = {'parent_run_id': other.id, 'branch_step': run.forked_at_step}
     if shared is None and left.parent_id and left.parent_id == right.parent_id:
+        same_step = left.forked_at_step == right.forked_at_step
         shared = {'parent_run_id': left.parent_id,
-                  'branch_step': left.forked_at_step if left.forked_at_step == right.forked_at_step else None}
+                  'branch_step': left.forked_at_step if same_step else None}
     if shared is None:
-        warnings.append('Ветви не имеют общего контрольного состояния — это два независимых запуска')
+        warnings.append('Ветви не имеют общего контрольного состояния — '
+                        'это два независимых запуска')
     return {'shared_origin': shared, 'warnings': warnings,
             'comparable': not warnings}
 
 
 def _verdict(goal: str, left: Run, right: Run,
              left_summary: dict[str, Any], right_summary: dict[str, Any]) -> dict[str, Any]:
+    tie: float
     if goal == 'priority':
         key, tie = 'critical_jobs_completed_on_time', CRITICAL_TIE
         label = 'заданий приоритета 3, завершённых в срок'
@@ -71,10 +74,12 @@ def _verdict(goal: str, left: Run, right: Run,
         tiebreak = left_summary.get(secondary, 0) - right_summary.get(secondary, 0)
         if abs(tiebreak) <= (REVENUE_TIE_USD if secondary == 'revenue_usd' else CRITICAL_TIE):
             return {'winner': None, 'metric': key, 'delta': delta,
-                    'text': f'Результаты сопоставимы: одинаково по {label} и по дополнительному показателю'}
+                    'text': f'Результаты сопоставимы: одинаково по {label} '
+                            'и по дополнительному показателю'}
         winner = left if tiebreak > 0 else right
         return {'winner': winner.id, 'metric': secondary, 'delta': tiebreak,
-                'text': f'По {label} ветви равны; перевес даёт дополнительный показатель «{secondary}»'}
+                'text': f'По {label} ветви равны; перевес даёт '
+                        f'дополнительный показатель «{secondary}»'}
     winner = left if delta > 0 else right
     return {'winner': winner.id, 'metric': key, 'delta': delta,
             'text': f'Ветвь «{winner.title}» даёт больше {label}: разница {abs(delta):g}'}

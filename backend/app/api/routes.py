@@ -17,9 +17,17 @@ from ..core import verify as verify_mod
 from ..core.errors import BadRequest
 from ..core.registry import registry
 from ..planner import GOALS, PLANNERS
-from .schemas import (AdvanceRequest, CloseDownlinkRequest, CreateRun, EventRequest,
-                      ForkRequest, GoalRequest, OutageRequest, UploadScenario,
-                      VerifyRequest)
+from .schemas import (
+    AdvanceRequest,
+    CloseDownlinkRequest,
+    CreateRun,
+    EventRequest,
+    ForkRequest,
+    GoalRequest,
+    OutageRequest,
+    UploadScenario,
+    VerifyRequest,
+)
 
 router = APIRouter(prefix='/api')
 
@@ -72,9 +80,15 @@ def delete_run(run_id: str) -> None:
 @router.post('/runs/{run_id}/advance')
 def advance(run_id: str, body: AdvanceRequest) -> dict[str, Any]:
     run = registry.get(run_id)
-    if (body.steps is None) == (body.to_step is None):
+    # Ровно одно из двух: либо «выполнить N шагов», либо «остановиться перед
+    # шагом N». Развилка написана явно, а не через отрицание: так видно, что
+    # ни одна ветвь не работает с None.
+    if body.steps is not None and body.to_step is None:
+        executed = run.advance(body.steps)
+    elif body.to_step is not None and body.steps is None:
+        executed = run.advance_to(body.to_step)
+    else:
         raise BadRequest('Provide exactly one of steps or to_step')
-    executed = run.advance(body.steps) if body.steps is not None else run.advance_to(body.to_step)
     return {'executed_steps': executed, **run.info()}
 
 

@@ -8,7 +8,8 @@ mutates it and keeps an incremental index of the jobs that are open right now.
 from __future__ import annotations
 
 import heapq
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 Action = dict[str, Any]
 Job = dict[str, Any]

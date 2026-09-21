@@ -14,10 +14,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from model.operations import RESULT_SCHEMA, digest, replay_episode
+
 from . import config  # noqa: F401  (puts the repository root on sys.path)
 from .errors import BadRequest
-
-from model.operations import RESULT_SCHEMA, digest, replay_episode  # noqa: E402
 
 TOLERANCE = 1e-9
 MAX_MISMATCHES = 40
@@ -75,7 +75,8 @@ def verify(payload: dict[str, Any]) -> dict[str, Any]:
         raise BadRequest(f'Replay refused this export: {exc}') from exc
 
     replayed_summary = session.summary()
-    saved_summary = payload.get('summary') if isinstance(payload.get('summary'), dict) else {}
+    stated_summary = payload.get('summary')
+    saved_summary: dict[str, Any] = stated_summary if isinstance(stated_summary, dict) else {}
     mismatches = _diff(saved_summary, replayed_summary)
 
     saved_trace = payload.get('trace') if isinstance(payload.get('trace'), list) else None
@@ -83,7 +84,9 @@ def verify(payload: dict[str, Any]) -> dict[str, Any]:
     trace_digest_replayed = digest(session.env.trace)
     first_divergence = None
     if saved_trace is not None and trace_digest_saved != trace_digest_replayed:
-        for i, (left, right) in enumerate(zip(saved_trace, session.env.trace)):
+        # Не strict: разная длина журналов — это и есть одно из расхождений,
+        # о которых мы обязаны доложить, а не повод упасть с исключением.
+        for i, (left, right) in enumerate(zip(saved_trace, session.env.trace)):  # noqa: B905
             if _diff(left, right):
                 first_divergence = {'row': i, 'fields': _diff(left, right)[:MAX_MISMATCHES]}
                 break

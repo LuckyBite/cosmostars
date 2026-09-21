@@ -10,6 +10,7 @@ replays with the reference library:
     python -m backend.cli feasibility --scenario P02_shift
     python -m backend.cli ceiling --scenarios P01_intro P02_shift P03_energy P04_demand
     python -m backend.cli tune --param calibration_lead --values 0 3 6 12 24
+    python -m backend.cli bound --scenarios P02_shift P04_demand
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .app.core import config, scenarios
+from .app.core import scenarios
 from .app.core.run import Run
 from .app.planner import DEFAULT_PLANNER, GOALS, PLANNERS
 
@@ -91,10 +92,10 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     header = ['scenario', 'planner', 'goal', *REPORT_KEYS]
     widths = [max(len(h), *(len(f'{row[h]:g}' if isinstance(row[h], float) else str(row[h]))
                             for row in rows)) for h in header]
-    print('  '.join(h.ljust(w) for h, w in zip(header, widths)))
+    print('  '.join(h.ljust(w) for h, w in zip(header, widths, strict=True)))
     for row in rows:
         cells = [f'{row[h]:g}' if isinstance(row[h], float) else str(row[h]) for h in header]
-        print('  '.join(c.ljust(w) for c, w in zip(cells, widths)))
+        print('  '.join(c.ljust(w) for c, w in zip(cells, widths, strict=True)))
     if args.csv:
         path = Path(args.csv)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -151,9 +152,9 @@ def cmd_ceiling(args: argparse.Namespace) -> int:
                      'gap': optimum - served})
     header = ['scenario', 'flow_optimum', 'committed', 'executed', 'gap']
     widths = [max(len(h), *(len(str(row[h])) for row in rows)) for h in header]
-    print('  '.join(h.ljust(w) for h, w in zip(header, widths)))
+    print('  '.join(h.ljust(w) for h, w in zip(header, widths, strict=True)))
     for row in rows:
-        print('  '.join(str(row[h]).ljust(w) for h, w in zip(header, widths)))
+        print('  '.join(str(row[h]).ljust(w) for h, w in zip(header, widths, strict=True)))
     worst = max(row['gap'] for row in rows)
     print()
     print(f'Наибольший разрыв до оптимума потока: {worst} шагов работы.')
@@ -183,10 +184,53 @@ def cmd_tune(args: argparse.Namespace) -> int:
     header = ['scenario', args.param, *REPORT_KEYS]
     widths = [max(len(h), *(len(f'{row[h]:g}' if isinstance(row[h], float) else str(row[h]))
                             for row in rows)) for h in header]
-    print('  '.join(h.ljust(w) for h, w in zip(header, widths)))
+    print('  '.join(h.ljust(w) for h, w in zip(header, widths, strict=True)))
     for row in rows:
         cells = [f'{row[h]:g}' if isinstance(row[h], float) else str(row[h]) for h in header]
-        print('  '.join(c.ljust(w) for c, w in zip(cells, widths)))
+        print('  '.join(c.ljust(w) for c, w in zip(cells, widths, strict=True)))
+    return 0
+
+
+def cmd_bound(args: argparse.Namespace) -> int:
+    """Две границы для ретрансляции и то, что между ними.
+
+    Связь мы решаем точно, а ретрансляцию пошагово, поэтому утверждение о её
+    качестве нуждается в мерке со стороны. Их две, и они отвечают на разные
+    вопросы. Расслабленный потолок потока не может быть превзойдён никаким
+    планировщиком, но игнорирует энергию, температуру и калибровку. Упущенные
+    аппарато-шаги, наоборот, считают только то, что было доступно в тот момент
+    по-настоящему: аппарат простаивал, связь была, заряда хватало, калибровка
+    держалась, и работа для него была. Первое число щедрое, второе честное.
+    """
+    from .app.planner import bound
+
+    for scenario_key in args.scenarios:
+        run = Run(scenarios.get(scenario_key), scenario_key,
+                  planner_name=DEFAULT_PLANNER, goal=args.goal)
+        relay_top = bound.work_ceiling(run.view, ('relay',))['work_steps_schedulable']
+        joint_top = bound.work_ceiling(run.view)['work_steps_schedulable']
+        run.advance_to(run.total_steps)
+        facts = bound.spent(run)
+        missed = bound.missed_capacity(run, 'relay')
+        useful_relay = facts['useful']['relay']
+        useful_total = facts['useful']['downlink'] + facts['useful']['relay']
+        share = (100.0 * useful_relay / relay_top) if relay_top else 0.0
+        total_share = (100.0 * useful_total / joint_top) if joint_top else 0.0
+
+        print(f'{scenario_key}  цель {args.goal}')
+        print(f'  ретрансляция: потолок потока {relay_top}, полезной работы {useful_relay} '
+              f'({share:.1f}%), впустую {facts["wasted"]["relay"]}')
+        print(f'  связь:        полезной работы {facts["useful"]["downlink"]}, '
+              f'впустую {facts["wasted"]["downlink"]}')
+        print(f'  вместе:       потолок потока {joint_top}, полезной работы {useful_total} '
+              f'({total_share:.1f}%)')
+        print(f'  упущено аппарато-шагов по ретрансляции: '
+              f'{missed["missed_satellite_steps"]} на {missed["distinct_steps"]} шагах смены')
+        reasons = missed['idle_explained_by']
+        print(f'  простой объясняется: нет связи {reasons["no_contact"]}, '
+              f'нечего делать {reasons["no_open_work"]}, '
+              f'ниже резерва {reasons["below_reserve"]}, '
+              f'калибровка истекла {reasons["calibration_expired"]}')
     return 0
 
 
@@ -233,6 +277,12 @@ def build_parser() -> argparse.ArgumentParser:
     knob.add_argument('--goal', default='priority', choices=list(GOALS))
     knob.add_argument('--events')
     knob.set_defaults(func=cmd_tune)
+
+    lid = sub.add_parser('bound', help='Потолок по ретрансляции и упущенные аппарато-шаги')
+    lid.add_argument('--scenarios', nargs='+',
+                     default=['P01_intro', 'P02_shift', 'P03_energy', 'P04_demand'])
+    lid.add_argument('--goal', default='priority', choices=list(GOALS))
+    lid.set_defaults(func=cmd_bound)
     return parser
 
 

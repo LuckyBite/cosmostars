@@ -21,6 +21,10 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: ruff
+        run: python -m ruff check .
+      - name: mypy
+        run: python -m mypy
       - run: python -m pytest tests -q
       # The experiment table in the README comes out of this command; if it
       # stops running, the numbers in the README stop being reproducible.

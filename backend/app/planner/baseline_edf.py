@@ -31,14 +31,12 @@ class EDFPlanner(Planner):
             if not view.available(sid):
                 plan.idle(sid, 'satellite_unavailable')
                 continue
-            if view.calibration_expired(sid):
-                if plan.try_calibrate(sid):
-                    continue
+            if view.calibration_expired(sid) and plan.try_calibrate(sid):
+                continue
             candidates = sorted(view.jobs_for(sid), key=self._rank)
             if any(plan.try_job(sid, job) for job in candidates):
                 continue
-            if view.calibration_age(sid) >= valid_for - margin:
-                if plan.try_calibrate(sid):
-                    continue
+            if view.calibration_age(sid) >= valid_for - margin and plan.try_calibrate(sid):
+                continue
             plan.idle(sid)
         return plan.finish()

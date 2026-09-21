@@ -9,18 +9,17 @@ from __future__ import annotations
 import copy
 import itertools
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
+from model.operations import Session
+
+from ..planner import DEFAULT_PLANNER, StepView, build_planner, check_goal, feasibility
+from ..planner import downlink as downlink_mod
+from ..planner.smart import SmartPlanner
 from . import config  # noqa: F401  (puts the repository root on sys.path)
 from . import explain as explain_mod
 from .errors import BadRequest, EventRejected
-from ..planner import DEFAULT_PLANNER, StepView, build_planner, check_goal
-from ..planner import downlink as downlink_mod
-from ..planner import feasibility
-from ..planner.smart import SmartPlanner
-
-from model.operations import Session  # noqa: E402
 
 _counter = itertools.count(1)
 
@@ -43,7 +42,7 @@ def _intervals(flags: list[Any]) -> list[list[int]]:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec='seconds')
+    return datetime.now(UTC).isoformat(timespec='seconds')
 
 
 class Run:
@@ -122,7 +121,8 @@ class Run:
         try:
             self.session.apply_event(event)
         except (ValueError, KeyError, TypeError) as exc:
-            raise EventRejected(str(exc), {'event_id': event.get('id') if isinstance(event, dict) else None}) from exc
+            event_id = event.get('id') if isinstance(event, dict) else None
+            raise EventRejected(str(exc), {'event_id': event_id}) from exc
         self.view.refresh()
         self.planner.on_event(event, self.view)
         return copy.deepcopy(event)
@@ -135,7 +135,7 @@ class Run:
         self.planner.set_goal(goal)
         self.goal_switches.append({'step': self.step, 'goal': goal})
 
-    def fork(self, title: str | None = None) -> 'Run':
+    def fork(self, title: str | None = None) -> Run:
         """Independent continuation from this exact control state."""
         branch = copy.copy(self)
         branch.id = uuid.uuid4().hex[:12]
@@ -173,6 +173,7 @@ class Run:
 
     def satellites(self) -> list[dict[str, Any]]:
         env = self.session.env
+        valid_for = env.s['model']['calibration_valid_steps']
         last: dict[str, dict[str, Any]] = {}
         for row in reversed(env.trace):
             last.setdefault(row['satellite_id'], row)
@@ -190,8 +191,8 @@ class Run:
                 'soc_pct': round(100 * state['energy_wh'] / spec['capacity_wh'], 6),
                 'temp_c': round(state['temp_c'], 6),
                 'calibration_age_steps': state['calibration_age_steps'],
-                'calibration_valid_steps': env.s['model']['calibration_valid_steps'],
-                'calibration_expired': state['calibration_age_steps'] >= env.s['model']['calibration_valid_steps'],
+                'calibration_valid_steps': valid_for,
+                'calibration_expired': state['calibration_age_steps'] >= valid_for,
                 'available': env.available(sid),
                 'downlink_now': self.view.contact(sid, 'downlink') if not self.finished else None,
                 'relay_now': self.view.contact(sid, 'relay') if not self.finished else None,
