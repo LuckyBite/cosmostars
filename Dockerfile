@@ -30,9 +30,12 @@ COPY examples/ examples/
 COPY backend/ backend/
 COPY --from=interface /ui/dist frontend/dist
 
-# Hugging Face Spaces serves port 7860 and runs the container as uid 1000.
-RUN useradd --uid 1000 --create-home operator && chown -R operator:operator /app
-USER operator
+# Не root: сервису не нужны права ни на что, кроме своего каталога.
+# Имя не `operator`: в Debian такой системный пользователь уже есть (uid 37),
+# и useradd отказался бы с кодом 9.
+RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin cosmostars \
+    && chown -R cosmostars:cosmostars /app
+USER cosmostars
 ENV PORT=7860
 EXPOSE 7860
 
