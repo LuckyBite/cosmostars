@@ -12,6 +12,11 @@
 
 services:
   app:
+    # Собирается из Dockerfile командой `docker compose up -d --build`, но если
+    # задать COSMOSTARS_IMAGE, то же самое берётся готовым из реестра: сборка
+    # интерфейса внутри образа хочет около гигабайта памяти, и на маленькой
+    # машине забрать готовый образ и проще, и быстрее.
+    image: ${COSMOSTARS_IMAGE:-cosmostars:local}
     build: .
     restart: unless-stopped
     environment:

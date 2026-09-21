@@ -40,6 +40,9 @@ jobs:
 
   image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -60,3 +63,25 @@ jobs:
           curl -fsS http://127.0.0.1:7860/ | grep -q 'Пульт наземной смены'
           curl -fsS http://127.0.0.1:7860/api/scenarios | grep -q P02_shift
           docker rm -f cosmostars
+
+      # Проверенный образ публикуется, чтобы маленькой машине не пришлось
+      # собирать интерфейс самой: сборка хочет около гигабайта памяти.
+      # Имя реестра только в нижнем регистре — ghcr.io другого не принимает.
+      - name: имя образа
+        id: name
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        if: steps.name.outputs.image != ''
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        if: steps.name.outputs.image != ''
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:main
+            ${{ steps.name.outputs.image }}:${{ github.sha }}
