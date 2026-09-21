@@ -24,6 +24,8 @@ from model.operations import Session  # noqa: E402
 
 _counter = itertools.count(1)
 
+UNKNOWN_CELL = ' '
+
 
 def _intervals(flags: list[Any]) -> list[list[int]]:
     """Half-open runs of truth in a boolean series: [[start, end), ...]."""
@@ -61,6 +63,11 @@ class Run:
         self.planner = build_planner(planner_name, goal, **(parameters or {}))
         self.session = Session(scenario, run_metadata=self._run_metadata())
         self.view = StepView(self.session.env)
+        # The ceiling is a forward-looking bound, so the one taken now covers
+        # the whole shift and stays the yardstick for its result. Messages can
+        # only take contact away, never add it, so this snapshot remains an
+        # upper bound for the rest of the shift even after an outage.
+        self.initial_feasibility = feasibility.analyse(self.view)
 
     # --- identity ---------------------------------------------------------
     @property
@@ -288,6 +295,74 @@ class Run:
                          'end_step': f['end_step']} for f in env.s['failures']],
         }
 
+    def grid(self) -> dict[str, Any]:
+        """The executed shift as one character per satellite-step.
+
+        The canvas needs all 48 x 288 cells at once, and the execution log is
+        four megabytes of objects to say the same thing. One character per cell
+        is fourteen kilobytes, so the interface can hold the whole shift and
+        move the cursor without asking the service again.
+        """
+        env = self.session.env
+        total = self.total_steps
+        sats = sorted(env.sats)
+        kinds = {job_id: job['kind'] for job_id, job in env.jobs.items()}
+        actions = {sid: [UNKNOWN_CELL] * total for sid in sats}
+        soc = {sid: [None] * total for sid in sats}
+        for row in env.trace:
+            sid, k = row['satellite_id'], row['step']
+            if k >= total:
+                continue
+            requested = (row.get('requested') or {}).get('job_id')
+            if row['executed'] == 'job':
+                cell = 'd' if kinds.get(requested) == 'downlink' else 'r'
+            elif row['executed'] == 'calibrate':
+                cell = 'c'
+            elif requested is not None or row['reason'] not in ('idle', 'no_admissible_work'):
+                cell = 'x'   # a command was issued for this satellite and refused
+            else:
+                cell = '.'
+            actions[sid][k] = cell
+            soc[sid][k] = round(100 * row['energy_after_wh'] / env.sats[sid]['capacity_wh'])
+        return {
+            'step': self.step,
+            'total_steps': total,
+            'satellites': sats,
+            'actions': {sid: ''.join(cells) for sid, cells in actions.items()},
+            'soc': soc,
+            'progress': self._progress(total),
+            'legend': {'d': 'downlink', 'r': 'relay', 'c': 'calibrate', 'x': 'refused',
+                       '.': 'idle', UNKNOWN_CELL: 'not executed yet'},
+        }
+
+    def _progress(self, total: int) -> dict[str, list[float]]:
+        """Per-step increments of the official figures, for the cursor to sum.
+
+        Each series is attributed to the step the library attributes it to:
+        completion and revenue land on the step a job finished, obligations and
+        misses on the step a deadline fell. Summing any of them up to the
+        cursor gives exactly what ``summary()`` reports there, so moving the
+        cursor never shows a number the service would not also report.
+        """
+        names = ('completed', 'due', 'missed', 'critical_due', 'critical_done')
+        counts: dict[str, list[float]] = {name: [0] * (total + 1) for name in names}
+        counts['revenue_usd'] = [0.0] * (total + 1)
+        for job in self.session.env.jobs.values():
+            done, deadline = job['completed_step'], job['deadline_step']
+            if done is not None and done <= total:
+                counts['completed'][done] += 1
+                counts['revenue_usd'][done] += job['value_usd']
+            if deadline <= total:
+                counts['due'][deadline] += 1
+                if done is None:
+                    counts['missed'][deadline] += 1
+                if job['priority'] == 3:
+                    counts['critical_due'][deadline] += 1
+                    if done is not None:
+                        counts['critical_done'][deadline] += 1
+        counts['revenue_usd'] = [round(value, 6) for value in counts['revenue_usd']]
+        return counts
+
     def explain_job(self, job_id: str) -> dict[str, Any]:
         """Layered account of one job's fate: data, contest, satellite."""
         return explain_mod.explain(self, job_id)
@@ -303,8 +378,17 @@ class Run:
         return downlink_mod.slot_prices(self.view, schedule)
 
     def feasibility(self) -> dict[str, Any]:
+        """What is provable now, alongside what was provable at the start.
+
+        Both are needed and they answer different questions: the live report
+        says what is still out of reach, the opening snapshot says what the
+        shift could ever have achieved — which is the only honest denominator
+        for a finished shift.
+        """
         self.view.refresh()
-        return feasibility.analyse(self.view)
+        report = feasibility.analyse(self.view)
+        report['at_open'] = self.initial_feasibility
+        return report
 
     def downlink_plan(self) -> dict[str, Any] | None:
         """The committed transmission schedule, when the planner keeps one."""

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +22,9 @@ app = FastAPI(
     version='1.0',
     description='Оператор наземной смены: планирование, события, ветвление, сравнение.',
 )
+# The shift views are repetitive JSON and compress by an order of magnitude;
+# over a free host's link that is the difference between instant and sluggish.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.ALLOWED_ORIGINS,

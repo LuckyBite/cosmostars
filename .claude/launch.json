@@ -2,6 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "service",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-3", "-m", "uvicorn", "backend.app.main:app", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "console-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 5173
+    },
+    {
       "name": "proto",
       "runtimeExecutable": "py",
       "runtimeArgs": ["-3", "-m", "http.server", "8770", "--directory", "docs/proto"],

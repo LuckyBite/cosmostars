@@ -1,0 +1,326 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { api, runKey, useContacts, useDownlinkPlan, useGrid, useSlotPrices } from '../api/client'
+import type { RunInfo } from '../api/types'
+import { priceIndex } from '../derive'
+import { useConsole } from '../store'
+import { Card, Chip, Failure, Legend, Loading, Note, action, num, usd } from '../ui'
+import { JobExplain } from './JobExplain'
+
+// The fog of war.
+//
+// One grid, two layers. Left of the cursor is what the shift executed, and it
+// is never redrawn from new knowledge — the pixels there are the log. Right of
+// the cursor is what the planner intends given what it knows right now, drawn
+// pale because it is not a fact yet. A message arriving at step 72 changes the
+// right-hand layer and cannot touch the left one, which is the claim the
+// criterion about temporal correctness asks us to make visible.
+//
+// The two layers are rasterised once into offscreen canvases; moving the cursor
+// only re-blits them under two clips, so playback stays smooth at any speed.
+
+const ROW_H = 12
+const MIN_CELL = 3
+const LABELS = 44
+
+interface Palette {
+  plane: string; inset: string; idle: string; line: string
+  d: string; r: string; c: string; x: string; off: string; ink: string
+}
+
+function palette(element: HTMLElement): Palette {
+  const style = getComputedStyle(element)
+  const token = (name: string) => style.getPropertyValue(name).trim()
+  return {
+    plane: token('--surface'), inset: token('--inset'), idle: token('--idle'),
+    line: token('--line-soft'), d: token('--s1'), r: token('--s3'), c: token('--s2'),
+    x: token('--crit'), off: token('--off'), ink: token('--ink'),
+  }
+}
+
+export function CanvasPanel({ run }: { run: RunInfo }) {
+  const cursor = useConsole((s) => s.cursor)
+  const selectJob = useConsole((s) => s.selectJob)
+  const setCursor = useConsole((s) => s.setCursor)
+  const grid = useGrid(run.run_id)
+  const plan = useDownlinkPlan(run.run_id)
+  const contacts = useContacts(run.run_id)
+  const prices = useSlotPrices(run.run_id)
+  const client = useQueryClient()
+
+  const hostRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const layers = useRef<{ fact: HTMLCanvasElement; intent: HTMLCanvasElement } | null>(null)
+  const [width, setWidth] = useState(1080)
+  const [hover, setHover] = useState<{ x: number; y: number; sid: string; step: number } | null>(null)
+
+  const total = grid.data?.total_steps ?? run.total_steps
+  const sats = grid.data?.satellites ?? []
+  const cell = Math.max(MIN_CELL, Math.floor((width - LABELS) / total))
+  const plotW = cell * total
+  const plotH = ROW_H * sats.length
+  const index = useMemo(() => priceIndex(prices.data?.prices), [prices.data])
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    observer.observe(host)
+    setWidth(host.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+
+  // --- rasterise both layers ------------------------------------------------
+  useEffect(() => {
+    if (!grid.data || !canvasRef.current || !sats.length) return
+    const colors = palette(canvasRef.current)
+    const make = () => {
+      const surface = document.createElement('canvas')
+      surface.width = plotW
+      surface.height = plotH
+      return surface
+    }
+    const fact = make()
+    const intent = make()
+    const fc = fact.getContext('2d')!
+    const ic = intent.getContext('2d')!
+
+    fc.fillStyle = colors.inset
+    fc.fillRect(0, 0, plotW, plotH)
+    ic.fillStyle = colors.inset
+    ic.fillRect(0, 0, plotW, plotH)
+
+    // Layer one: the log.
+    sats.forEach((sid, row) => {
+      const line = grid.data.actions[sid] ?? ''
+      const y = row * ROW_H
+      for (let step = 0; step < total; step++) {
+        const code = line.charCodeAt(step)
+        const fill = code === 100 ? colors.d : code === 114 ? colors.r
+          : code === 99 ? colors.c : code === 120 ? colors.x
+          : code === 46 ? colors.idle : null
+        if (!fill) continue
+        fc.fillStyle = fill
+        fc.fillRect(step * cell, y + 1, Math.max(cell - 0.5, 1), ROW_H - 2)
+      }
+    })
+
+    // Layer two: contacts the planner can still use, and the transmissions it
+    // has committed to. Nothing here has happened yet.
+    const rowOf = new Map(sats.map((sid, row) => [sid, row]))
+    ic.fillStyle = colors.idle
+    for (const item of contacts.data?.items ?? []) {
+      const row = rowOf.get(item.satellite_id)
+      if (row === undefined) continue
+      for (const [from, to] of item.downlink) {
+        for (let step = from; step < Math.min(to, total); step++) {
+          ic.fillRect(step * cell, row * ROW_H + ROW_H / 2 - 1, Math.max(cell - 0.5, 1), 2)
+        }
+      }
+    }
+    const assignments = plan.data?.plan?.assignments ?? {}
+    ic.fillStyle = colors.d
+    for (const [step, byS] of Object.entries(assignments)) {
+      const k = Number(step)
+      for (const sid of Object.keys(byS)) {
+        const row = rowOf.get(sid)
+        if (row === undefined) continue
+        ic.fillRect(k * cell, row * ROW_H + 1, Math.max(cell - 0.5, 1), ROW_H - 2)
+      }
+    }
+    // Announced unavailability applies to both sides of the cursor.
+    for (const outage of contacts.data?.outages ?? []) {
+      const row = rowOf.get(outage.satellite_id)
+      if (row === undefined) continue
+      for (const context of [fc, ic]) {
+        context.fillStyle = colors.off
+        context.fillRect(outage.start_step * cell, row * ROW_H + 1,
+                         Math.max((outage.end_step - outage.start_step) * cell, 1), ROW_H - 2)
+      }
+    }
+    layers.current = { fact, intent }
+    draw()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grid.data, plan.data, contacts.data, cell, plotW, plotH, total, sats.length])
+
+  // --- per-frame blit -------------------------------------------------------
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current
+    const pair = layers.current
+    if (!canvas || !pair) return
+    const ratio = window.devicePixelRatio || 1
+    if (canvas.width !== plotW * ratio || canvas.height !== plotH * ratio) {
+      canvas.width = plotW * ratio
+      canvas.height = plotH * ratio
+    }
+    const context = canvas.getContext('2d')!
+    context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    context.clearRect(0, 0, plotW, plotH)
+    const split = Math.min(cursor, total) * cell
+
+    context.save()
+    context.beginPath()
+    context.rect(split, 0, plotW - split, plotH)
+    context.clip()
+    context.globalAlpha = 0.4
+    context.drawImage(pair.intent, 0, 0)
+    context.restore()
+
+    context.save()
+    context.beginPath()
+    context.rect(0, 0, split, plotH)
+    context.clip()
+    context.drawImage(pair.fact, 0, 0)
+    context.restore()
+
+    const colors = palette(canvas)
+    context.fillStyle = colors.ink
+    context.fillRect(split - 0.5, 0, 1, plotH)
+  }, [cursor, cell, plotW, plotH, total])
+
+  useEffect(draw, [draw])
+
+  const cellAt = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    const step = Math.floor(((event.clientX - box.left) / box.width) * total)
+    const row = Math.floor(((event.clientY - box.top) / box.height) * sats.length)
+    if (step < 0 || step >= total || row < 0 || row >= sats.length) return null
+    return { sid: sats[row], step }
+  }
+
+  const resolveJob = async (sid: string, step: number) => {
+    if (step >= cursor) {
+      const planned = plan.data?.plan?.assignments?.[String(step)]?.[sid]
+      if (planned) { selectJob(planned); return }
+    }
+    const log = await client.fetchQuery({
+      queryKey: [...runKey(run.run_id), 'trace', sid],
+      queryFn: () => api.trace(run.run_id, { satellite_id: sid, limit: 20000 }),
+    })
+    const row = log.items.find((item) => item.step === step)
+    const jobId = row?.requested?.job_id ?? row?.completed_job ?? null
+    if (jobId) selectJob(jobId)
+  }
+
+  const factOf = (sid: string, step: number) => {
+    const code = grid.data?.actions[sid]?.[step]
+    return code === 'd' ? 'передача на Землю' : code === 'r' ? 'ретрансляция'
+      : code === 'c' ? 'калибровка' : code === 'x' ? 'команда отклонена'
+      : code === '.' ? 'простой' : 'ещё не исполнено'
+  }
+
+  return (
+    <>
+      <Failure error={grid.error ?? plan.error} what="Полотно не построилось" />
+      <Card
+        title={<>Полотно смены · {sats.length} × {total}</>}
+        note="Слева от курсора — факт: что исполнилось. Справа — намерение планировщика при текущем знании, бледным. Курсор двигается по исполненной истории, и левая часть не меняется ни на пиксель."
+        right={<Legend items={[
+          { color: 'var(--s1)', label: 'связь' },
+          { color: 'var(--s3)', label: 'ретрансляция' },
+          { color: 'var(--s2)', label: 'калибровка' },
+          { color: 'var(--crit)', label: 'отклонено' },
+          { color: 'var(--idle)', label: 'простой / контакт' },
+          { color: 'var(--off)', label: 'недоступен' },
+        ]} />}
+      >
+        {grid.isPending ? <Loading what="Сетка смены" /> : (
+          <div className="canvas-host" ref={hostRef}>
+            <div className="canvas-rows" style={{ width: LABELS }}>
+              {sats.map((sid) => (
+                <button key={sid} className="canvas-row-label" style={{ height: ROW_H }}
+                        onClick={() => useConsole.getState().selectSatellite(sid)}>{sid}</button>
+              ))}
+            </div>
+            <canvas
+              ref={canvasRef}
+              className="canvas-plot"
+              style={{ width: plotW, height: plotH }}
+              onMouseLeave={() => setHover(null)}
+              onMouseMove={(event) => {
+                const hit = cellAt(event)
+                setHover(hit ? { ...hit, x: event.clientX, y: event.clientY } : null)
+              }}
+              onClick={(event) => {
+                const hit = cellAt(event)
+                if (!hit) return
+                setCursor(hit.step)
+                void resolveJob(hit.sid, hit.step)
+              }}
+            />
+            {hover && (
+              <div className="tip" style={{ display: 'block', left: hover.x + 14, top: hover.y + 12 }}>
+                <b>{hover.sid} · шаг {hover.step}</b>
+                <ul>
+                  <li><span>{hover.step < cursor ? 'факт' : 'намерение'}</span>
+                      <em>{hover.step < cursor ? factOf(hover.sid, hover.step)
+                        : (plan.data?.plan?.assignments?.[String(hover.step)]?.[hover.sid] ?? '—')}</em></li>
+                  <li><span>заряд</span>
+                      <em>{grid.data?.soc[hover.sid]?.[hover.step] ?? '—'}%</em></li>
+                  {index.has(`${hover.step}:${hover.sid}`) && (
+                    <li><span>цена слота</span>
+                        <em>{usd(index.get(`${hover.step}:${hover.sid}`)!.price)}</em></li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="readout">
+          <span>курсор на шаге <b>{cursor}</b></span>
+          <span>исполнено до <b>{run.step}</b></span>
+          {plan.data?.plan && <>
+            <span>в расписании связи <b>{num(plan.data.plan.selected_jobs.length)}</b> заданий</span>
+            <span>недостижимо <b>{num(plan.data.plan.unreachable.length)}</b></span>
+            <span>снято отбором <b>{num(plan.data.plan.displaced.length)}</b></span>
+            <span>расписание построено на шаге <b>{plan.data.plan.built_at_step}</b></span>
+          </>}
+        </div>
+        {!plan.data?.plan && (
+          <Note><span>
+            У этого планировщика нет расписания связи заранее — он решает пошагово, поэтому
+            правее курсора показывать нечего, кроме окон контакта.
+          </span></Note>
+        )}
+        <p className="tbl-note">
+          Клик по клетке ставит курсор на этот шаг и открывает разбор задания, которое там
+          стояло. Клик по имени аппарата открывает его на экране «Аппараты».
+          {run.events_received > 0 && <> Сообщений получено: {run.events_received} — отмотайте
+          курсор к отметке на таймлайне и сравните левую часть до и после.</>}
+        </p>
+      </Card>
+
+      <div className="two">
+        <JobExplain run={run} />
+        <Card title="Что стоит за клеткой"
+              note="Полотно рисуется из одного источника: журнала модели на 48 × 288 значений. Каждая клетка — одно решение оператора и его результат.">
+          <dl className="dl">
+            <dt>Аппаратов</dt><dd>{sats.length}</dd>
+            <dt>Шагов</dt><dd>{total}</dd>
+            <dt>Клеток</dt><dd>{num(sats.length * total)}</dd>
+            <dt>Отклонённых команд</dt><dd>{num(run.summary.blocked_command_count)}</dd>
+            <dt>Аппарато-шагов ниже резерва</dt><dd>{num(run.summary.below_reserve_satellite_steps)}</dd>
+            <dt>Работа впустую</dt><dd>{num(run.summary.work_steps_in_missed_jobs)} шагов</dd>
+          </dl>
+          <p className="tbl-note">
+            «Работа впустую» — шаги, потраченные на задания, которые так и не были завершены.
+            {run.summary.work_steps_in_missed_jobs === 0
+              ? ' Здесь она нулевая: планировщик не начинает то, что не может закончить.'
+              : ' Ненулевая величина показывает, где расписание пришлось ломать по ходу смены.'}
+          </p>
+          {run.parent_id && (
+            <Note><span>
+              Это ветвь от <Chip>{run.parent_id.slice(0, 6)}</Chip> с шага{' '}
+              <b>{run.forked_at_step}</b>: до этого шага полотно совпадает с родительским
+              по построению, дальше — расходится.
+            </span></Note>
+          )}
+          <p className="tbl-note">
+            Последнее действие аппарата и причина отказа доступны на экране «Аппараты»;
+            {' '}{action('job')} в журнале означает работу по заданию.
+          </p>
+        </Card>
+      </div>
+    </>
+  )
+}

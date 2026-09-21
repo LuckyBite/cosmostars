@@ -160,6 +160,11 @@ def feasibility(run_id: str) -> dict[str, Any]:
     return registry.get(run_id).feasibility()
 
 
+@router.get('/runs/{run_id}/grid')
+def run_grid(run_id: str) -> dict[str, Any]:
+    return registry.get(run_id).grid()
+
+
 @router.get('/runs/{run_id}/jobs/{job_id}/explain')
 def explain_job(run_id: str, job_id: str) -> dict[str, Any]:
     return registry.get(run_id).explain_job(job_id)
