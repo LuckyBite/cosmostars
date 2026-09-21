@@ -17,6 +17,7 @@ from model.operations import Session
 from ..planner import DEFAULT_PLANNER, StepView, build_planner, check_goal, feasibility
 from ..planner import downlink as downlink_mod
 from ..planner.smart import SmartPlanner
+from . import audit as audit_mod
 from . import config  # noqa: F401  (puts the repository root on sys.path)
 from . import explain as explain_mod
 from .errors import BadRequest, EventRejected
@@ -363,6 +364,10 @@ class Run:
                         counts['critical_done'][deadline] += 1
         counts['revenue_usd'] = [round(value, 6) for value in counts['revenue_usd']]
         return counts
+
+    def audit(self) -> dict[str, Any]:
+        """Пересчёт исполненной истории реализацией, не зависящей от библиотеки."""
+        return audit_mod.audit(self)
 
     def explain_job(self, job_id: str) -> dict[str, Any]:
         """Layered account of one job's fate: data, contest, satellite."""

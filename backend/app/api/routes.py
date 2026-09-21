@@ -174,6 +174,12 @@ def feasibility(run_id: str) -> dict[str, Any]:
     return registry.get(run_id).feasibility()
 
 
+@router.get('/runs/{run_id}/audit')
+def run_audit(run_id: str) -> dict[str, Any]:
+    """Сверка журнала с независимым пересчётом: физика и учёт построчно."""
+    return registry.get(run_id).audit()
+
+
 @router.get('/runs/{run_id}/grid')
 def run_grid(run_id: str) -> dict[str, Any]:
     return registry.get(run_id).grid()

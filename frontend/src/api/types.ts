@@ -315,6 +315,25 @@ export interface VerifyReport {
   same_check_by_hand: string
 }
 
+export interface AuditReport {
+  at_step: number
+  verdict: 'consistent' | 'inconsistent'
+  physics: {
+    rows_checked: number
+    match: boolean
+    mismatch_count: number
+    mismatches: { step: number; satellite_id: string; field: string; recomputed: number; in_log: number }[]
+  }
+  accounting: {
+    recomputed: Record<string, number>
+    match: boolean
+    mismatches: { field: string; recomputed: number; in_summary: number }[]
+    completion_step_mismatch_count: number
+  }
+  checked_by: string
+  what_it_proves: string
+}
+
 export interface ServiceError {
   error: string
   message: string

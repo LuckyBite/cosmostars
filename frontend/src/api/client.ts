@@ -7,7 +7,7 @@
 
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
 import type {
-  CaseEvent, CompareReport, Contacts, DownlinkPlan, Explain, Feasibility, Goal, Grid,
+  AuditReport, CaseEvent, CompareReport, Contacts, DownlinkPlan, Explain, Feasibility, Goal, Grid,
   JobRow, JobState, RunInfo, SatelliteRow, ScenarioBrief, Series, SlotPrices, TraceRow,
   VerifyReport,
 } from './types'
@@ -67,6 +67,7 @@ export const api = {
   events: (id: string) => request<{ items: CaseEvent[] }>(`/runs/${id}/events`),
   contacts: (id: string) => request<Contacts>(`/runs/${id}/contacts`),
   grid: (id: string) => request<Grid>(`/runs/${id}/grid`),
+  audit: (id: string) => request<AuditReport>(`/runs/${id}/audit`),
   satellites: (id: string) => request<{ items: SatelliteRow[] }>(`/runs/${id}/satellites`),
   jobs: (id: string, params: { status?: JobState | 'all'; limit?: number; offset?: number }) => {
     const query = new URLSearchParams({
@@ -120,6 +121,7 @@ export const useRuns = () => useQuery({ queryKey: ['runs'], queryFn: api.runs })
 export const useRun = (id: string | null) => runQuery(id, 'info', api.run)
 export const useEvents = (id: string | null) => runQuery(id, 'events', api.events)
 export const useGrid = (id: string | null) => runQuery(id, 'grid', api.grid)
+export const useAudit = (id: string | null) => runQuery(id, 'audit', api.audit)
 export const useSatellites = (id: string | null) => runQuery(id, 'satellites', api.satellites)
 export const useFeasibility = (id: string | null) => runQuery(id, 'feasibility', api.feasibility)
 export const useDownlinkPlan = (id: string | null) => runQuery(id, 'downlink-plan', api.downlinkPlan)

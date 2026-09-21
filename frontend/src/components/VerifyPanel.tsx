@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { CheckCircle2, FileUp, RefreshCw, XCircle } from 'lucide-react'
-import { ApiError, api } from '../api/client'
+import { ApiError, api, useAudit } from '../api/client'
 import type { RunInfo, VerifyReport } from '../api/types'
-import { Card, Chip, Failure, Note, num, usd } from '../ui'
+import { Card, Chip, Failure, Loading, Note, num, usd } from '../ui'
 
 // Reproducibility, answered in the browser.
 //
@@ -116,6 +116,8 @@ export function VerifyPanel({ run }: { run: RunInfo }) {
         )}
       </Card>
 
+      <AuditCard run={run} />
+
       <Card title="Что лежит в выгрузке"
             note="Формат кейса cosmo-B-ops-result-1.0: исходный сценарий целиком, полученные сообщения в порядке получения, все команды по шагам, число выполненных шагов, сводка и метаданные запуска.">
         <dl className="dl">
@@ -133,6 +135,66 @@ export function VerifyPanel({ run }: { run: RunInfo }) {
         </p>
       </Card>
     </>
+  )
+}
+
+// Воспроизводимость выше отвечает на вопрос «повторяется ли расчёт» — и
+// отвечает силами той же библиотеки. Здесь другое: журнал пересчитан по
+// описанию модели нашим собственным кодом, который библиотеку не вызывает.
+// Совпадение двух независимых реализаций — это уже не доверие к одной из них.
+function AuditCard({ run }: { run: RunInfo }) {
+  const { data, isPending, error } = useAudit(run.run_id)
+  return (
+    <Card title="Независимый пересчёт журнала"
+          note="Заряд, температура, обогрев, нагрузка, прогресс по заданиям, завершение и выручка пересчитаны по описанию модели, без обращения к выданной библиотеке, и сверены со журналом построчно.">
+      <Failure error={error} what="Пересчёт не выполнен" />
+      {isPending || !data ? <Loading what="Пересчёт" /> : run.step === 0 ? (
+        <Note><span>Смена ещё не сделала ни шага — пересчитывать нечего.</span></Note>
+      ) : (
+        <>
+          <div className={'verdict' + (data.verdict === 'consistent' ? ' ok' : '')}>
+            {data.verdict === 'consistent'
+              ? <CheckCircle2 size={16} aria-hidden />
+              : <XCircle size={16} aria-hidden />}
+            <span>
+              <b>{data.verdict === 'consistent'
+                ? 'Учёт сходится с независимым пересчётом.'
+                : 'Найдено расхождение.'}</b>{' '}
+              Проверено {num(data.physics.rows_checked)} строк журнала на шаге {data.at_step}.
+            </span>
+          </div>
+          <table>
+            <thead><tr><th>Что пересчитано</th><th>Результат</th><th>Подробности</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Энергия, температура, обогрев, нагрузка</td>
+                <td><Verdict ok={data.physics.match} /></td>
+                <td>{num(data.physics.rows_checked)} строк, расхождений {num(data.physics.mismatch_count)}</td>
+              </tr>
+              <tr>
+                <td>Прогресс, завершение, выручка, лимиты</td>
+                <td><Verdict ok={data.accounting.match} /></td>
+                <td>
+                  выручка {usd(data.accounting.recomputed.revenue_usd)},
+                  завершено {num(data.accounting.recomputed.jobs_completed)},
+                  отклонено команд {num(data.accounting.recomputed.blocked_command_count)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          {!!data.physics.mismatches.length && (
+            <p className="tbl-note">
+              Первое расхождение: шаг {data.physics.mismatches[0].step},{' '}
+              {data.physics.mismatches[0].satellite_id}, поле{' '}
+              {data.physics.mismatches[0].field} — пересчитано{' '}
+              {data.physics.mismatches[0].recomputed}, в журнале{' '}
+              {data.physics.mismatches[0].in_log}.
+            </p>
+          )}
+          <p className="tbl-note">{data.what_it_proves}</p>
+        </>
+      )}
+    </Card>
   )
 }
 

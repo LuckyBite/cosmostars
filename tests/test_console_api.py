@@ -269,3 +269,35 @@ def test_the_relay_bound_never_promises_less_than_the_shift_achieved(client: Tes
     missed = bound.missed_capacity(run, 'relay')['missed_satellite_steps']
     assert useful <= ceiling
     assert 0 < missed <= ceiling - useful
+
+
+def test_the_log_survives_an_independent_recomputation(client: TestClient):
+    """Учёт сверяется не сам с собой.
+
+    Проверка воспроизводимости отдаёт выгрузку той же библиотеке. Этот тест
+    строже: физика и учёт пересчитываются по описанию модели нашим кодом,
+    который библиотеку не вызывает, и должны совпасть построчно.
+    """
+    run_id = run_to(client, 288)
+    report = client.get(f'/api/runs/{run_id}/audit').json()
+    assert report['verdict'] == 'consistent'
+    assert report['physics']['rows_checked'] == 288 * 48
+    assert report['physics']['mismatch_count'] == 0
+    assert report['accounting']['completion_step_mismatch_count'] == 0
+    summary = client.get(f'/api/runs/{run_id}').json()['summary']
+    assert report['accounting']['recomputed']['jobs_completed'] == summary['jobs_completed']
+    assert report['accounting']['recomputed']['revenue_usd'] == pytest.approx(
+        summary['revenue_usd'], abs=1e-6)
+
+
+def test_the_recomputation_survives_events_and_branching(client: TestClient):
+    """Сообщения добавляют задания и отнимают контакты — учёт обязан сойтись и там."""
+    run_id = run_to(client, 72)
+    client.post(f'/api/runs/{run_id}/events/close-downlink',
+                json={'satellite_ids': ['S09', 'S10'], 'end_step': 200})
+    client.post(f'/api/runs/{run_id}/advance', json={'to_step': 150})
+    branch = client.post(f'/api/runs/{run_id}/fork', json={}).json()['run_id']
+    client.post(f'/api/runs/{branch}/goal', json={'goal': 'revenue'})
+    client.post(f'/api/runs/{branch}/advance', json={'to_step': 288})
+    for target in (run_id, branch):
+        assert client.get(f'/api/runs/{target}/audit').json()['verdict'] == 'consistent'
