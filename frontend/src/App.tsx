@@ -1,8 +1,8 @@
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   GitBranch, Grid3x3, LayoutDashboard, List, Satellite, SquareCheck, Zap, type LucideIcon,
 } from 'lucide-react'
-import { useRun } from './api/client'
+import { ApiError, useRun } from './api/client'
 import { useConsole, type Tab } from './store'
 import { StartScreen } from './components/StartScreen'
 import { Mark } from './components/Mark'
@@ -15,7 +15,7 @@ import { JobsPanel } from './components/JobsPanel'
 import { BranchesPanel } from './components/BranchesPanel'
 import { VerifyPanel } from './components/VerifyPanel'
 import { JuryPanel } from './components/JuryPanel'
-import { Failure, num } from './ui'
+import { Failure, Note, num } from './ui'
 
 // Seven equal tabs said all seven screens were the same kind of thing. They are
 // not: four are the shift as it runs, three are the argument about it afterwards.
@@ -59,7 +59,20 @@ export function App() {
   const tab = useConsole((s) => s.tab)
   const setTab = useConsole((s) => s.setTab)
   const syncFrontier = useConsole((s) => s.syncFrontier)
+  const closeRun = useConsole((s) => s.closeRun)
   const { data: run, error } = useRun(runId)
+
+  // A shift lives in the memory of the service process, so a restart — a
+  // deploy, a cold start, a crash — takes the open shifts with it. The tab
+  // then asks for a shift that no longer exists, and the operator did nothing
+  // wrong: the remembered id is dropped and the reason is stated in one
+  // sentence instead of an alarm carrying the service's own words.
+  const [lost, setLost] = useState(false)
+  const missing = error instanceof ApiError && error.status === 404
+  useEffect(() => {
+    if (missing) { setLost(true); closeRun() }
+  }, [missing, closeRun])
+  useEffect(() => { if (runId) setLost(false) }, [runId])
 
   // The service owns the executed frontier; the store only mirrors it.
   useEffect(() => {
@@ -69,7 +82,16 @@ export function App() {
   if (!runId || !run) {
     return (
       <>
-        <Failure error={error} what="Смена не открылась" />
+        {lost ? (
+          <Note>
+            <span>Смена, открытая в этой вкладке, больше не существует: сервис
+              перезапускался, а смены живут в памяти процесса. Это ожидаемо и ничего
+              не испортило — выберите смену заново, полный расчёт занимает секунды.
+              Долговечный артефакт — выгрузка, и она проверяется на экране «Проверка».</span>
+          </Note>
+        ) : (
+          <Failure error={missing ? null : error} what="Смена не открылась" />
+        )}
         <StartScreen />
       </>
     )
