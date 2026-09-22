@@ -386,6 +386,10 @@
   gap: 16px; align-items: start;
 }
 .jobs-scroll, .sats-scroll { max-height: 62vh; overflow-y: auto; }
+/* Virtualised rows are measured, so the row height has to be stable: a cell that
+   grows by a chip must not change the row the scrollbar was sized against. */
+.jobs-scroll tbody tr { height: 34px; }
+.jobs-scroll tbody tr[aria-hidden] td { padding: 0; border: 0; }
 .layers { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .layers li {
   padding: 12px 14px; border-radius: 5px; background: var(--inset);

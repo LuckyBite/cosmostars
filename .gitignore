@@ -12,3 +12,9 @@ dist/
 архив/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
+
+# Сравнительная песочница: прежний пульт, собранный в /before/. Артефакт, не исходник.
+frontend/public/
+
+# Выгрузка из Claude Design: макеты пульта в .dc.html. Материал для правок, не исходник.
+design_handoff_cosmostars_console/

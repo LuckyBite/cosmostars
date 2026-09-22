@@ -2,8 +2,9 @@ name: checks
 
 # Two things worth knowing before a deadline: the accounting still agrees with
 # the reference library, and the image that carries the service to the jury
-# still builds. The image is built here and thrown away — publishing is a
-# separate, deliberate step (deploy/push-space.sh).
+# still builds. On a pull request the image is built, answered and thrown away;
+# on main the same image is pushed to ghcr, and the VPS only pulls it — building
+# the interface there wants about a gigabyte of memory the machine does not have.
 
 on:
   push:

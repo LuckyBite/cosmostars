@@ -5,7 +5,7 @@
 // every question in this case is asked about one step. The cursor is part of
 // every chart: to its left the shift happened, to its right it did not.
 
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { StepLoad } from '../derive'
 import { num } from '../ui'
 
@@ -38,17 +38,38 @@ export function OccupancyChart({ load, cursor, satellites, height = 108 }: {
         <line key={line} x1={0} x2={W} y1={height * line} y2={height * line}
               stroke="var(--grid)" strokeWidth={0.5} />
       ))}
-      {bars.map((bar) => (
-        <g key={bar.step} opacity={bar.step < cursor ? 1 : 0.22}>
-          {bar.parts.map((part) => (
-            <rect key={part.key} x={bar.step} width={1}
-                  y={height - ((part.y + part.value) / scale) * height}
-                  height={(part.value / scale) * height} fill={part.fill} />
-          ))}
-        </g>
-      ))}
-      <line x1={cursor} x2={cursor} y1={0} y2={height} stroke="var(--ink)" strokeWidth={0.7} />
+      <OccupancyBars bars={bars} scale={scale} height={height} />
+      <Ahead cursor={cursor} height={height} />
     </svg>
+  )
+}
+
+/** The columns themselves: they are the log, and the cursor cannot change them. */
+const OccupancyBars = memo(function OccupancyBars({ bars, scale, height }: {
+  bars: { step: number; parts: { key: string; value: number; fill: string; y: number }[] }[]
+  scale: number; height: number
+}) {
+  return (
+    <>
+      {bars.map((bar) => bar.parts.map((part) => (
+        <rect key={bar.step + part.key} x={bar.step} width={1}
+              y={height - ((part.y + part.value) / scale) * height}
+              height={(part.value / scale) * height} fill={part.fill} />
+      )))}
+    </>
+  )
+})
+
+/** Everything right of the cursor has not happened: one rectangle, not 288. */
+function Ahead({ cursor, height }: { cursor: number; height: number }) {
+  return (
+    <>
+      {cursor < W && (
+        <rect x={cursor} y={0} width={W - cursor} height={height}
+              fill="var(--plane)" opacity={0.74} />
+      )}
+      <line x1={cursor} x2={cursor} y1={0} y2={height} stroke="var(--ink)" strokeWidth={0.7} />
+    </>
   )
 }
 
@@ -76,11 +97,23 @@ export function ContactBand({ cells, cursor, limit, onPick, height = 34 }: {
          }}
          style={onPick ? { cursor: 'crosshair' } : undefined}>
       <rect x={0} y={0} width={W} height={top} fill="var(--inset)" />
+      <BandCells cells={cells} limit={limit} top={top} maxPrice={maxPrice} />
+      <Ahead cursor={cursor} height={height} />
+    </svg>
+  )
+}
+
+/** The windows and their prices: fixed for the shift, so drawn once. */
+const BandCells = memo(function BandCells({ cells, limit, top, maxPrice }: {
+  cells: BandCell[]; limit: number; top: number; maxPrice: number
+}) {
+  return (
+    <>
       {cells.map((cell) => {
         if (cell.supply === 0) return null
         const share = Math.min(cell.used / limit, 1)
         return (
-          <g key={cell.step} opacity={cell.step < cursor ? 1 : 0.3}>
+          <g key={cell.step}>
             <rect x={cell.step} y={2} width={1} height={top - 4} fill="var(--idle)" />
             {share > 0 && (
               <rect x={cell.step} y={2 + (top - 4) * (1 - share)} width={1}
@@ -90,14 +123,13 @@ export function ContactBand({ cells, cursor, limit, onPick, height = 34 }: {
         )
       })}
       {cells.map((cell) => cell.price > 0 && (
-        <rect key={cell.step} x={cell.step} y={top} width={1} height={10}
+        <rect key={'p' + cell.step} x={cell.step} y={top} width={1} height={10}
               fill={cell.ground === 'unreachable_by_window' ? 'var(--serious)' : 'var(--crit)'}
               opacity={0.25 + 0.75 * (cell.price / maxPrice)} />
       ))}
-      <line x1={cursor} x2={cursor} y1={0} y2={height} stroke="var(--ink)" strokeWidth={0.7} />
-    </svg>
+    </>
   )
-}
+})
 
 /** The proof behind one job: its window against its satellite's real contacts.
  *

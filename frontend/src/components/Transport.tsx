@@ -78,14 +78,27 @@ export function Transport({ run }: { run: RunInfo }) {
 
   const at = (value: number) => `${(100 * value) / run.total_steps}%`
 
+  // A pointer can fire faster than the screen refreshes, and every event used to
+  // cost a full re-render. Only the last position of a frame is worth anything,
+  // so the rest are dropped.
   const scrubRef = useRef<HTMLDivElement>(null)
-  const scrubTo = (clientX: number) => {
+  const pending = useRef<number | null>(null)
+  const frame = useRef(0)
+  const apply = () => {
+    frame.current = 0
+    const clientX = pending.current
+    pending.current = null
     const box = scrubRef.current?.getBoundingClientRect()
-    if (!box || box.width === 0) return
+    if (clientX === null || !box || box.width === 0) return
     const ratio = (clientX - box.left) / box.width
-    pause()
     setCursor(Math.round(Math.max(0, Math.min(1, ratio)) * run.total_steps))
   }
+  const scrubTo = (clientX: number) => {
+    pause()
+    pending.current = clientX
+    if (!frame.current) frame.current = requestAnimationFrame(apply)
+  }
+  useEffect(() => () => { if (frame.current) cancelAnimationFrame(frame.current) }, [])
 
   const nudge = (delta: number) => { pause(); setCursor(cursor + delta) }
 
