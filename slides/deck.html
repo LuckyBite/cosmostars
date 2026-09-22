@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmostars · защита</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="deck.css">
+</head>
+<body class="timings">
+<div id="stage">
+<div id="deck">
+<canvas id="sky"></canvas>
+<div id="rail"><i></i></div>
+
+<!-- 01 ------------------------------------------------------------------ -->
+<section class="slide" data-label="Титул · 0:20" data-notes="«Cosmostars — пульт наземной смены. 48 аппаратов, 288 пятиминутных шагов, на Землю одновременно передают только два. Мы не просто планируем лучше простого правила — мы показываем границу возможного и доказываем, где потеря принадлежит сценарию, а не алгоритму». Сразу сказать: все числа в докладе воспроизводятся одной командой sweep, и прогон детерминирован при любом PYTHONHASHSEED.">
+  <svg class="orbit" viewBox="0 0 900 900" aria-hidden="true">
+    <circle cx="450" cy="450" r="250"/><circle cx="450" cy="450" r="330"/><circle cx="450" cy="450" r="410"/>
+    <g class="r1"><circle class="sat" cx="700" cy="450" r="7"/></g>
+    <g class="r2"><circle class="sat" cx="120" cy="450" r="6"/><circle class="sat" cx="450" cy="120" r="5"/></g>
+    <g class="r3"><circle class="sat" cx="860" cy="450" r="5"/><circle class="sat" cx="450" cy="40" r="6"/></g>
+  </svg>
+  <div class="head">
+    <div class="l">
+      <span class="kicker" data-a="fade">КосмоХакатон 2026</span>
+      <span class="time" data-a="fade">0:20</span>
+    </div>
+    <span class="kicker" data-a="fade">Автономное управление спутниковой группировкой</span>
+  </div>
+  <h1 style="margin-top:168px" data-a="left" data-d="0.2">Cosmostars</h1>
+  <p class="lead" style="font-size:46px;line-height:1.24;max-width:1240px;margin-top:30px" data-a="left" data-d="0.34">Пульт наземной смены: планирование, ветвление по сообщениям, разбор потерь</p>
+  <div class="grid" style="grid-template-columns:repeat(5,minmax(0,1fr));gap:28px;margin:92px 0 0">
+    <div data-a data-d="0.5"><div style="font-size:30px">Михаил Герц</div><div class="kicker" style="letter-spacing:0;text-transform:none;margin-top:8px">разработчик</div></div>
+    <div data-a data-d="0.57"><div style="font-size:30px">Софья Крайниченко</div><div class="kicker" style="letter-spacing:0;text-transform:none;margin-top:8px">эксперт</div></div>
+    <div data-a data-d="0.64"><div style="font-size:30px">Дарья Скороходова</div><div class="kicker" style="letter-spacing:0;text-transform:none;margin-top:8px">дизайнер</div></div>
+    <div data-a data-d="0.71"><div style="font-size:30px">Владимир Попов</div><div class="kicker" style="letter-spacing:0;text-transform:none;margin-top:8px">аналитик</div></div>
+    <div data-a data-d="0.78"><div style="font-size:30px">Михаил Дубенский</div><div class="kicker" style="letter-spacing:0;text-transform:none;margin-top:8px">менеджер</div></div>
+  </div>
+  <div class="foot" data-a="fade" data-d="0.95">
+    <span>161-104-54-14.sslip.io</span>
+    <span>Все числа: python -m backend.cli sweep</span>
+  </div>
+</section>
+
+<!-- 02 ------------------------------------------------------------------ -->
+<section class="slide" data-label="Смена оператора · 0:30" data-notes="Говорить от лица дежурного, не пересказывать постановку. Назвать вслух: 48 аппаратов, 288 пятиминутных шагов, одновременно на Землю — только два спутника. Мысль: каждое решение занимает ресурс, которого не будет на следующем шаге, и цена ошибки видна не сразу, а через час смены.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Контекст</span><span class="time" data-a="fade">0:30</span></div>
+    <span class="kicker" data-a="fade">Суточная смена</span>
+  </div>
+  <h2 data-a="left">Одна смена глазами оператора</h2>
+  <p class="lead">Каждое решение занимает ресурс, которого не будет на следующем шаге. Цена ошибки видна не сразу, а через час смены.</p>
+  <div class="grid g3" style="gap:40px;margin:64px 0 0">
+    <div class="card" data-a="zoom"><span class="big" data-count="48" data-delay="0.5">0</span><span class="cap">аппаратов в группировке</span></div>
+    <div class="card" data-a="zoom"><span class="big" data-count="288" data-delay="0.6">0</span><span class="cap">пятиминутных шагов в смене</span></div>
+    <div class="card hot" data-a="zoom"><span class="big beat" data-count="2" data-delay="0.7">0</span><span class="cap" style="color:#E3CFA6">канала на Землю одновременно</span></div>
+  </div>
+  <div class="chips" style="margin:50px 0 0">
+    <span class="chip" data-a>Заряд и резерв батареи</span>
+    <span class="chip" data-a>Температура аппарата</span>
+    <span class="chip" data-a>Срок калибровки</span>
+    <span class="chip hot" data-a>Дефицит наземной связи</span>
+  </div>
+  <!-- Полоса суток: 288 шагов, и в каждом на Землю уходит не больше двух
+       передач. Рисуется скриптом из тех же чисел, что названы выше. -->
+  <div style="margin:auto 0 0" data-a="fade">
+    <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:23px;color:var(--ink-4);margin-bottom:14px">
+      <span>00:00 · шаг 0</span><span>458 окон контакта на 288 шагов — в среднем 1,6 на шаг</span><span>24:00 · шаг 288</span>
+    </div>
+    <div id="daystrip" style="display:flex;gap:1px;height:76px;align-items:flex-end"></div>
+    <div style="display:flex;gap:30px;margin-top:14px;font-family:var(--mono);font-size:23px;color:var(--ink-4)">
+      <span><i style="display:inline-block;width:12px;height:12px;background:var(--s1);border-radius:2px;margin-right:8px"></i>окна в пределах лимита двух передач</span>
+      <span><i style="display:inline-block;width:12px;height:12px;background:var(--warn);border-radius:2px;margin-right:8px"></i>третье окно — воспользоваться нечем</span>
+      <span><i style="display:inline-block;width:12px;height:12px;background:var(--line);border-radius:2px;margin-right:8px"></i>шаг без окна контакта</span>
+    </div>
+  </div>
+  <div class="foot" data-a="fade"><span>Постановка кейса · сценарии P02 / P03 / P04</span><span></span></div>
+</section>
+
+<!-- 03 ------------------------------------------------------------------ -->
+<section class="slide" data-label="Метод · 0:45" data-notes="Слайд для технических экспертов, формулировать точно: наземная связь — двудольное паросочетание с лимитом два на шаг, решается точно на каждом шаге; ретрансляция — пошаговое жадное правило; калибровка ставится упреждающе, до того как аппарат понадобится передаче. Добавить: узкое место смены — связь, поэтому именно оно решается точно.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Подход</span><span class="time" data-a="fade">0:45</span></div>
+    <span class="kicker" data-a="fade">Три решения, принятые нами</span>
+  </div>
+  <h2 data-a="left">Метод в одном кадре</h2>
+  <div class="grid g3" style="margin:56px 0 0">
+    <div class="card cool" style="gap:20px;padding:36px 36px 40px" data-a="zoom">
+      <span class="n">01</span><h3>Наземная связь</h3>
+      <p>Двудольное паросочетание с лимитом два на шаг. Решается точно, а не подбором.</p>
+      <span class="tag">точно</span>
+    </div>
+    <div class="card hot" style="gap:20px;padding:36px 36px 40px" data-a="zoom">
+      <span class="n" style="color:var(--warn)">02</span><h3 style="color:#F5E9D2">Ретрансляция</h3>
+      <p>Пошаговое правило. Упрощение осознанное — разрыв к точному решению мы измеряем, а не замалчиваем.</p>
+      <span class="tag">жадно, измерено</span>
+    </div>
+    <div class="card cool" style="gap:20px;padding:36px 36px 40px" data-a="zoom">
+      <span class="n">03</span><h3>Калибровка</h3>
+      <p>Ставится до того, как аппарат понадобится передаче. Срок не превращается в простой в час пик.</p>
+      <span class="tag">упреждающе</span>
+    </div>
+  </div>
+  <p class="punch" data-a>Узкое место смены — связь, поэтому именно оно решается точно. Остальное отдано правилам с измеренной ценой.</p>
+  <div class="foot" data-a="fade"><span>Прогон детерминирован при любом PYTHONHASHSEED: ключ сортировки доведён до однозначного</span><span></span></div>
+</section>
+
+<!-- 04 ------------------------------------------------------------------ -->
+<section class="slide plain" data-label="Результат · 1:00" data-notes="Ядро защиты. Сначала одна фраза: простое правило — выбор по ближайшему сроку, его требует постановка, мы реализовали его сами. Затем два числа голосом: на P04 приоритет 3 в срок 1224 из 1692 против 1641 из 1692; выручка 128 162 против 165 225 долларов. И добить P02: работа впустую 43 шага против нуля.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Результат</span><span class="time" data-a="fade">1:00</span></div>
+    <span class="kicker" data-a="fade">baseline-edf → Cosmostars</span>
+  </div>
+  <h2 class="tight" data-a="left">Результат против простого правила</h2>
+  <table class="res" style="margin:36px 0 0">
+    <tbody>
+      <tr data-a="fade"><th style="width:42%">Метрика</th><th class="base" style="width:19%">Простое правило</th><th class="ours" style="width:19%">Cosmostars</th><th style="width:20%">Разница</th></tr>
+      <tr data-a="fade"><td class="sec" colspan="4">P02 · суточная смена, цель «приоритет»</td></tr>
+      <tr data-a><td>Завершено заданий</td><td class="num base">1 137</td><td class="num ours">1 164</td><td class="diff">+27</td></tr>
+      <tr data-a><td>Приоритет 3 в срок</td><td class="num base">303/334</td><td class="num ours">315/334</td><td class="diff">+12</td></tr>
+      <tr data-a><td>Выручка</td><td class="num base">$27 032</td><td class="num ours">$27 407</td><td class="diff">+$375</td></tr>
+      <tr data-a><td>Работа впустую</td><td class="num base warnv">43 шага</td><td class="num ours">0</td><td class="diff">−43</td></tr>
+      <tr data-a="fade"><td class="sec" colspan="4">P04 · перегрузка заявками, 8 120 заданий</td></tr>
+      <tr data-a><td>Завершено заданий</td><td class="num base">5 379</td><td class="num ours">5 801</td><td class="diff">+422</td></tr>
+      <tr data-a><td>Приоритет 3 в срок</td><td class="num base">1 224/1 692</td><td class="num ours">1 641/1 692</td><td class="diff">+417</td></tr>
+      <tr data-a><td>Выручка</td><td class="num base">$128 162</td><td class="num ours">$165 225</td><td class="diff">+$37 063</td></tr>
+    </tbody>
+  </table>
+  <div class="foot" data-a="fade">
+    <span>Источник: python -m backend.cli sweep</span>
+    <span>Простое правило — выбор по ближайшему сроку, реализован нами</span>
+  </div>
+</section>
+
+<!-- 05 ------------------------------------------------------------------ -->
+<section class="slide warm" data-label="P03 · дефицит энергии · 0:55" data-notes="Самый сильный слайд: здесь подходы расходятся качественно, а не в процентах. Назвать: простое правило теряет 79 заданий и уходит ниже резерва заряда на 1696 аппарато-шагах; мы держим результат P02 при 6 таких шагах. Обязательно добавить смысл: уход ниже резерва — это риск для аппарата, а не строчка в отчёте.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Сценарий P03</span><span class="time" data-a="fade">0:55</span></div>
+    <span class="kicker" data-a="fade">Дефицит энергии</span>
+  </div>
+  <h2 class="tight" data-a="left">Чем платит каждый подход при дефиците энергии</h2>
+  <div class="bars">
+    <div class="bar-row" data-a>
+      <div class="bar-top"><span class="who" style="color:var(--warn)">Простое правило</span>
+        <span class="val" style="color:var(--warn)"><span data-count="1696" data-delay="0.7">0</span> аппарато-шагов ниже резерва заряда</span></div>
+      <div class="bar"><i class="hot" data-w="100%" data-delay="0.55"></i></div>
+      <span class="bar-note hot">Потеряно 79 заданий</span>
+    </div>
+    <div class="bar-row" data-a>
+      <div class="bar-top"><span class="who" style="color:var(--s1)">Cosmostars</span>
+        <span class="val" style="color:var(--s1)"><span class="beat" data-count="6" data-delay="1.25">0</span> аппарато-шагов ниже резерва заряда</span></div>
+      <div class="bar"><i class="ours" data-w="0.354%" data-delay="1.1"></i></div>
+      <span class="bar-note">Результат P02 сохранён полностью</span>
+    </div>
+  </div>
+  <p class="punch" data-a>Уход ниже резерва — не строчка в отчёте, а риск для аппарата. Разница здесь <b>качественная, а не процентная</b>.</p>
+  <div class="foot" data-a="fade"><span>Источник: python -m backend.cli sweep · сценарий P03</span><span>Полосы в одном масштабе: 6 против 1 696</span></div>
+</section>
+
+<!-- 06 ------------------------------------------------------------------ -->
+<section class="slide" data-label="Граница возможного · 0:40" data-notes="Слайд про честность расчёта. Назвать: на P02 из 1208 заданий 44 невыполнимы по сертификату окна, завершено ровно 1208 минус 44 — 1164. Вывод: планировщик достиг доказанного потолка, оставшийся разрыв принадлежит сценарию. Снимок справа — этот же вывод в живом сервисе, а не пересказ.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Потолок выполнимости</span><span class="time" data-a="fade">0:40</span></div>
+    <span class="kicker" data-a="fade">Сценарий P02</span>
+  </div>
+  <h2 class="tight" data-a="left">Граница возможного</h2>
+  <div style="display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);gap:64px;align-items:center;margin:56px 0 0;flex:1;min-height:0">
+    <div class="eq" style="flex-direction:column;align-items:flex-start;gap:26px;margin:0">
+      <div class="term" style="flex-direction:row;align-items:baseline;gap:28px" data-a="zoom">
+        <span class="op" style="font-size:56px;visibility:hidden">+</span>
+        <span class="huge" style="color:#FFF;font-size:112px" data-count="1208" data-delay="0.35">0</span>
+        <span style="font-size:28px">заданий<br>в суточной смене</span>
+      </div>
+      <div class="term" style="flex-direction:row;align-items:baseline;gap:28px" data-a="zoom">
+        <span class="op" style="font-size:56px">−</span>
+        <span class="huge" style="color:var(--warn);font-size:112px" data-count="44" data-delay="0.6">0</span>
+        <span style="font-size:28px;color:#E3CFA6">невыполнимы<br>по сертификату окна</span>
+      </div>
+      <div style="height:1px;background:var(--line);align-self:stretch" data-a="fade"></div>
+      <div class="term" style="flex-direction:row;align-items:baseline;gap:28px" data-a="zoom">
+        <span class="op" style="font-size:56px">=</span>
+        <span class="huge beat" style="color:var(--s1);font-size:112px" data-count="1164" data-delay="0.9">0</span>
+        <span style="font-size:28px">завершено<br>планировщиком</span>
+      </div>
+    </div>
+    <div data-a="zoom" data-d="1.2">
+      <div class="shot"><div class="chrome"><i></i><i></i><i></i><b>161-104-54-14.sslip.io · Смена</b></div>
+        <img src="shots/crop-ceiling.png" alt="Потолок выполнимости в пульте"></div>
+      <p class="shot-cap">Снимок сервиса, не пересказ: тот же счёт на экране «Смена»</p>
+    </div>
+  </div>
+  <p class="punch" style="margin-top:26px;font-size:35px" data-a>Планировщик достиг <b>доказанного потолка</b>. Оставшийся разрыв — свойство сценария, а не алгоритма.</p>
+  <div class="foot" data-a="fade"><span>Сертификат невыполнимости выдаётся на каждое задание</span><span>Источник: python -m backend.cli sweep · P02</span></div>
+</section>
+
+<!-- 07 ------------------------------------------------------------------ -->
+<section class="slide" data-label="Цена выбора цели · 0:35" data-notes="Смысл: цель смены выбирает оператор, и мы показываем, чем он платит за выбор. На P04 цель «приоритет» даёт 1641 обязательство в срок и 165 225 долларов; цель «выручка» — 1211 и 171 421 доллар. Назвать вывод: плюс 6 196 долларов стоят 430 обязательств. Компромисс измерен, а не назван. Обе смены считаны целиком с шага 0 — это не ветвление.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Компромисс</span><span class="time" data-a="fade">0:35</span></div>
+    <span class="kicker" data-a="fade">Сценарий P04</span>
+  </div>
+  <h2 data-a="left">Цена выбора цели</h2>
+  <p class="lead">Цель смены выбирает оператор. Мы показываем, чем он за этот выбор платит.</p>
+  <div class="grid g2" style="gap:40px;margin:52px 0 0">
+    <div class="card cool" style="gap:30px;padding:40px 42px" data-a="left">
+      <span style="font-size:40px;font-weight:600">Цель «приоритет»</span>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="big beat" data-count="1641" data-delay="0.5">0</span><span class="cap">обязательство в срок</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="mid" data-count="165225" data-pre="$" data-delay="0.7">$0</span><span class="cap dim">выручка</span></div>
+    </div>
+    <div class="card hot" style="gap:30px;padding:40px 42px" data-a="right">
+      <span style="font-size:40px;font-weight:600;color:#F5E9D2">Цель «выручка»</span>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="big" data-count="1211" data-delay="0.6">0</span><span class="cap" style="color:#E3CFA6">обязательств в срок</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="mid beat" style="color:#F5E9D2" data-count="171421" data-pre="$" data-delay="0.8">$0</span><span class="cap dim">выручка</span></div>
+    </div>
+  </div>
+  <p class="punch" data-a>Плюс <b>$6 196</b> выручки стоят <b>430</b> обязательств. Компромисс измерен, а не назван.</p>
+  <div class="foot" data-a="fade"><span>Источник: python -m backend.cli sweep · P04, две цели, обе с шага 0</span><span></span></div>
+</section>
+
+<!-- 08 ------------------------------------------------------------------ -->
+<section class="slide" data-label="Работа при изменениях · 0:30" data-notes="Сказать: сообщение приходит в середине смены — срочное задание, недоступность аппарата, отмена сеанса. Планировщик продолжает смену из фактического состояния: перестраивается только будущее, выполненная история не пересчитывается. Показать на снимке: слева от курсора плотный журнал, справа — бледное намерение. Назвать шаг 72 и добавить, что сервис объясняет по каждому заданию, что именно потеряно и почему.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Ветвление</span><span class="time" data-a="fade">0:30</span></div>
+    <span class="kicker" data-a="fade">Сообщение в середине смены</span>
+  </div>
+  <h2 class="tight" data-a="left">Работа при изменениях</h2>
+  <div style="display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,1fr);gap:56px;margin:40px 0 0;flex:1;min-height:0">
+    <div style="display:flex;flex-direction:column;min-height:0">
+      <div class="tl" style="margin-top:8px">
+        <div class="tl-marks" data-a="fade">
+          <span style="width:25%">Шаг 0</span>
+          <span style="color:var(--warn);font-size:30px">Шаг 72 · сообщение</span>
+          <span style="flex:1;text-align:right">Шаг 288</span>
+        </div>
+        <div class="tl-body" data-a>
+          <div class="tl-past"><span style="color:#EAF1FF;font-weight:500">История выполнена</span></div>
+          <div class="tl-cut"></div>
+          <div class="tl-next"><span style="color:var(--ink-2)">Будущее перестроено из фактического состояния</span></div>
+        </div>
+        <div class="tl-legend" data-a="fade" style="display:block;font-size:26px;line-height:1.35">Слева от курсора ничего не пересчитывается. Справа пересчитывается только то, что ещё не случилось.</div>
+      </div>
+      <div class="chips" style="margin:48px 0 0">
+        <span class="chip" data-a>Срочное задание</span>
+        <span class="chip" data-a>Аппарат недоступен</span>
+        <span class="chip" data-a>Сеанс отменён</span>
+      </div>
+      <p class="punch" style="font-size:34px;margin-top:44px" data-a>По каждому заданию сервис объясняет, что именно потеряно и почему.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;min-height:0" data-a="zoom" data-d="0.75">
+      <div class="shot">
+        <div class="chrome"><i></i><i></i><i></i><b>Полотно · курсор на шаге 72</b></div>
+        <div style="position:relative">
+          <img src="shots/05-canvas-fog.png" alt="Полотно смены: слева факт, справа намерение" style="width:100%;display:block">
+          <div class="pin" style="left:18.3%;top:23.7%;width:16.1%;height:57.7%" data-pin="факт"></div>
+          <div class="pin below" style="left:34.4%;top:23.7%;width:48.1%;height:57.7%" data-pin="намерение"></div>
+        </div>
+      </div>
+      <p class="shot-cap">Левая половина — журнал модели, она не перерисовывается никогда</p>
+    </div>
+  </div>
+  <div class="foot" data-a="fade"><span>Повторный прогон даёт побитово тот же журнал</span><span></span></div>
+</section>
+
+<!-- 09 ------------------------------------------------------------------ -->
+<section class="slide" data-label="Демонстрация · 0:15" data-notes="15 секунд на мостик, дальше живой показ по трём шагам: запуск смены P02, сообщение на шаге 72 и ветвление, разбор потерь по заданию. Если регламент поджимает — не показывать, а отдать ссылку и предложить показать после вопросов. Назвать адрес вслух. Напомнить: на экране «Показ» каждая кнопка приводит сервис в состояние под конкретный критерий.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Демонстрация</span><span class="time" data-a="fade">0:15</span></div>
+    <span class="kicker" data-a="fade">Сервис развёрнут</span>
+  </div>
+  <div style="display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);gap:60px;margin:44px 0 0;flex:1;min-height:0">
+    <div style="display:flex;flex-direction:column">
+      <h2 class="tight" style="margin:0" data-a="left">Сервис в работе</h2>
+      <div style="display:flex;flex-direction:column;gap:28px;margin:48px 0 0">
+        <div style="display:flex;gap:24px;align-items:baseline" data-a><span class="kicker" style="letter-spacing:0;color:var(--accent)">01</span><span style="font-size:33px;line-height:1.3">Запуск суточной смены P02</span></div>
+        <div style="display:flex;gap:24px;align-items:baseline" data-a><span class="kicker" style="letter-spacing:0;color:var(--accent)">02</span><span style="font-size:33px;line-height:1.3">Сообщение на шаге 72 и ветвление смены</span></div>
+        <div style="display:flex;gap:24px;align-items:baseline" data-a><span class="kicker" style="letter-spacing:0;color:var(--accent)">03</span><span style="font-size:33px;line-height:1.3">Разбор потерь: что не выполнено и почему</span></div>
+      </div>
+      <div style="margin-top:48px;padding:26px 30px;border:1px solid rgba(139,123,255,.4);border-radius:12px;background:rgba(24,30,40,.6)" data-a="zoom">
+        <span class="kicker" style="font-size:34px;letter-spacing:0;text-transform:none;color:var(--accent)">161-104-54-14.sslip.io</span>
+      </div>
+      <p class="shot-cap" style="margin-top:28px">Экран «Показ» — восемь маршрутов по критериям, каждый в один клик</p>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;min-height:0" data-a="zoom" data-d="0.5">
+      <div class="shot">
+        <div class="chrome"><i></i><i></i><i></i><b>Смена — итог на курсоре · P02_shift · cosmostars 1.0</b></div>
+        <div style="position:relative">
+          <img src="shots/02-shift-p02.png" alt="Экран смены в пульте Cosmostars" style="width:100%;display:block">
+          <div class="pin" style="left:13.9%;top:18.2%;width:84.9%;height:12.4%" data-pin="итог на курсоре"></div>
+        </div>
+      </div>
+      <p class="shot-cap">Живой сервис, суточная смена P02 досчитана целиком</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 ------------------------------------------------------------------ -->
+<section class="slide warm" data-label="Ограничения · 0:20" data-notes="Закрывающий слайд. Сказать прямо: смены живут в памяти процесса, ретрансляция решается жадно и разрыв измерен. Это не слабость доклада, а различение ограничений задачи и недостатков собственного алгоритма. Финальная фраза: все числа воспроизводятся командой sweep, прогон детерминирован при любом PYTHONHASHSEED.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Ограничения</span><span class="time" data-a="fade">0:20</span></div>
+    <span class="kicker" data-a="fade">Что знаем про свой алгоритм</span>
+  </div>
+  <h2 data-a="left">Что честно не сделано</h2>
+  <div class="grid g2" style="gap:40px;margin:60px 0 0;max-width:1440px">
+    <div class="card hot" style="gap:18px;padding:36px" data-a="left">
+      <h3 style="color:#F5E9D2;font-size:38px">Смены живут в памяти процесса</h3>
+      <p>Перезапуск сервера теряет открытую смену. База данных — следующий шаг, не текущий.</p>
+    </div>
+    <div class="card hot" style="gap:18px;padding:36px" data-a="right">
+      <h3 style="color:#F5E9D2;font-size:38px">Ретрансляция решается жадно</h3>
+      <p>Разрыв к точному решению измерен тем же прогоном, а не оценён на словах.</p>
+    </div>
+  </div>
+  <p class="punch" data-a>Ограничения задачи и недостатки нашего алгоритма мы <b>различаем и называем отдельно</b>.</p>
+  <div class="foot" data-a="fade">
+    <span>Все числа: python -m backend.cli sweep</span>
+    <span>Прогон детерминирован · журнал воспроизводится побитово</span>
+  </div>
+</section>
+
+<!-- Запас: слайды для ответов на вопросы. В регламент доклада не входят. -->
+
+<!-- A1 ------------------------------------------------------------------ -->
+<section class="slide plain" data-appendix="1" data-label="Запас · Полотно смены" data-notes="Если спросят, как оператор видит смену целиком. Сетка 48 аппаратов × 288 шагов, один кадр на все сутки: синее — наземная связь, бирюзовое — ретрансляция, оранжевое — калибровка. Видно, что калибровка расставлена заранее, а не в час пик.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Запас · по вопросам</span></div>
+    <span class="kicker" data-a="fade">Экран «Полотно» · P02_shift</span>
+  </div>
+  <h2 class="tight" style="margin-top:32px" data-a="left">Сутки группировки в одном кадре</h2>
+  <div class="shot fit" style="flex:1;margin:28px 0 0" data-a="zoom" data-d="0.3">
+    <div class="chrome"><i></i><i></i><i></i><b>Полотно смены · 48 × 288</b></div>
+    <img src="shots/03-canvas-p02.png" alt="Полотно смены 48 на 288">
+  </div>
+  <div class="foot" data-a="fade"><span>Связь · ретрансляция · калибровка · отклонено</span><span>Снимок снят скриптом: py -3 slides/shoot.py</span></div>
+</section>
+
+<!-- A2 ------------------------------------------------------------------ -->
+<section class="slide plain" data-appendix="1" data-label="Запас · Почему не вышло" data-notes="Если спросят, чем разбор отличается от отговорки. Три слоя по каждому заданию: невозможно по данным (сертификат против сценария, проверяется без нашего планировщика), проиграло контакт (кому и почему), не пустил аппарат (команда отклонена моделью).">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Запас · по вопросам</span></div>
+    <span class="kicker" data-a="fade">Экран «Задания» · разбор в три слоя</span>
+  </div>
+  <h2 class="tight" style="margin-top:32px" data-a="left">Почему задание не вышло</h2>
+  <div class="shot fit" style="flex:1;margin:28px 0 0" data-a="zoom" data-d="0.3">
+    <div class="chrome"><i></i><i></i><i></i><b>Задания — почему не вышло · JOB-0015</b></div>
+    <img src="shots/07-jobs-why.png" alt="Разбор невыполненного задания">
+  </div>
+  <div class="foot" data-a="fade"><span>Сертификат выдан против сценария, а не против нашего расписания</span><span></span></div>
+</section>
+
+<!-- A3 ------------------------------------------------------------------ -->
+<section class="slide plain" data-appendix="1" data-label="Запас · Проверка расчёта" data-notes="Если спросят, чем доказывается, что числа не нарисованы. Выгрузка прогоняется через replay_episode выданной библиотеки прямо в браузере: хеш исходного сценария, 13 824 строки журнала построчно, сводка по 15 полям. Ниже — независимый пересчёт энергии, температуры и выручки по описанию модели, без обращения к библиотеке.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Запас · по вопросам</span></div>
+    <span class="kicker" data-a="fade">Экран «Проверка» · выданная библиотека</span>
+  </div>
+  <h2 class="tight" style="margin-top:32px" data-a="left">Расчёт проверяется при жюри</h2>
+  <div class="shot fit" style="flex:1;margin:28px 0 0" data-a="zoom" data-d="0.3">
+    <div class="chrome"><i></i><i></i><i></i><b>Проверка — независимый пересчёт</b></div>
+    <img src="shots/11-verify.png" alt="Проверка расчёта выданной библиотекой">
+  </div>
+  <div class="foot" data-a="fade"><span>То же самое руками: python model/operations.py --result result.json</span><span></span></div>
+</section>
+
+<!-- A4 ------------------------------------------------------------------ -->
+<section class="slide plain" data-appendix="1" data-label="Запас · Перегрузка P04" data-notes="Если спросят про масштаб. P04 — 8 120 заданий на те же 458 окон связи. Считается целиком за доли секунды. Потолок 8 076: 44 невыполнимы по сертификату, ещё 2 275 — потери, и каждая разбирается на экране «Задания».">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Запас · по вопросам</span></div>
+    <span class="kicker" data-a="fade">Экран «Смена» · P04_demand</span>
+  </div>
+  <h2 class="tight" style="margin-top:32px" data-a="left">Перегрузка: 8 120 заданий на те же окна</h2>
+  <div class="shot fit" style="flex:1;margin:28px 0 0" data-a="zoom" data-d="0.3">
+    <div class="chrome"><i></i><i></i><i></i><b>Смена — итог на курсоре · P04_demand</b></div>
+    <img src="shots/10-shift-p04.png" alt="Итог смены P04 с перегрузкой">
+  </div>
+  <div class="foot" data-a="fade"><span>Сутки с 8 120 заданиями считаются за 0,7 секунды</span><span></span></div>
+</section>
+
+<!-- A5 ------------------------------------------------------------------ -->
+<section class="slide plain" data-appendix="1" data-label="Запас · Ветвление" data-notes="Важно не перепутать с шестым слайдом. На слайде «Цена выбора цели» обе смены считаны с шага 0 — это сравнение целей. Здесь другое: одна смена доведена до шага 72, из неё сделана ветвь, и уже ветвь переключена на выручку. Общая история — значит числа другие: 1641 против 1279 обязательств, 165 225 против 170 563 долларов. Сервис сам проверяет сопоставимость пары перед сравнением.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Запас · по вопросам</span></div>
+    <span class="kicker" data-a="fade">Экран «Ветви» · ветвление на шаге 72</span>
+  </div>
+  <h2 class="tight" style="margin-top:32px" data-a="left">Две цели из одного состояния</h2>
+  <div class="shot fit" style="flex:1;margin:28px 0 0" data-a="zoom" data-d="0.3">
+    <div class="chrome"><i></i><i></i><i></i><b>Ветви — сравнение решений · P04_demand</b></div>
+    <!-- Кадрируется по дереву, а не по верху экрана: числа второй ветви —
+         ровно то, ради чего слайд лежит в запасе. -->
+    <img src="shots/08-branches-goals.png" alt="Дерево смены: две ветви из шага 72"
+         style="object-position:center 66%">
+  </div>
+  <div class="foot" data-a="fade"><span>Ветвь наследует состояние целиком: заряд, температуру, калибровку, прогресс</span><span>Это не числа слайда «Цена выбора цели»: там обе смены с шага 0</span></div>
+</section>
+
+<!-- A6 ------------------------------------------------------------------ -->
+<section class="slide plain" data-appendix="1" data-label="Запас · Воспроизводимость" data-notes="Если технический эксперт спросит, почему мы уверены в воспроизводимости. Отсутствия генератора случайных чисел мало: задания лежат в множестве, порядок обхода множества строк в Python зависит от PYTHONHASHSEED, и правило с неоднозначным ключом сортировки разбирает их по-разному на разных запусках. У обоих планировщиков последний разряд ключа — идентификатор задания, поэтому прогон побитово повторяется при любом значении переменной. Проверяется запуском sweep с разными PYTHONHASHSEED.">
+  <div class="head">
+    <div class="l"><span class="kicker" data-a="fade">Запас · по вопросам</span></div>
+    <span class="kicker" data-a="fade">Почему числа повторяются</span>
+  </div>
+  <h2 class="tight" style="margin-top:32px" data-a="left">Воспроизводимость — не отсутствие random</h2>
+  <div class="grid g3" style="margin:52px 0 0">
+    <div class="card" data-a="zoom"><span class="n">01</span><h3 style="font-size:36px">Генератора нет</h3><p>grep по backend/ и model/ на random, seed, shuffle — пусто. Этого мало.</p></div>
+    <div class="card hot" data-a="zoom"><span class="n" style="color:var(--warn)">02</span><h3 style="font-size:36px;color:#F5E9D2">Множество — это порядок</h3><p>Задания лежат в set. Обход множества строк зависит от PYTHONHASHSEED.</p></div>
+    <div class="card cool" data-a="zoom"><span class="n">03</span><h3 style="font-size:36px">Ключ доведён до конца</h3><p>Последний разряд ключа сортировки — идентификатор задания. Равенства не остаётся.</p></div>
+  </div>
+  <p class="punch" data-a>Проверяется запуском: <b>PYTHONHASHSEED=0</b> и <b>PYTHONHASHSEED=123</b> дают одну и ту же таблицу.</p>
+  <div class="foot" data-a="fade"><span>backend/app/planner/baseline_edf.py · backend/app/planner/smart.py</span><span></span></div>
+</section>
+
+<div id="count"></div>
+<div id="help">← → листать · N заметки · T тайминги · F во весь экран</div>
+<div id="notes"></div>
+</div>
+</div>
+<script src="deck-data.js"></script>
+<script src="deck.js"></script>
+</body>
+</html>

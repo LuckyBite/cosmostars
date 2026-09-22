@@ -19,8 +19,13 @@ class EDFPlanner(Planner):
         super().__init__(goal, calibrate_margin=calibrate_margin)
         self.calibrate_margin = calibrate_margin
 
-    def _rank(self, job: Job) -> tuple[int, float]:
-        return (job['deadline_step'], -job_score(job, self.goal))
+    def _rank(self, job: Job) -> tuple[int, float, str]:
+        # Идентификатор в конце ключа — не украшение. Задания приходят из
+        # множества, а порядок обхода множества строк зависит от PYTHONHASHSEED,
+        # поэтому без этого разряда одинаковые по сроку и цене задания
+        # разбирались в разном порядке, и повторный прогон давал другие числа.
+        # Наш планировщик так и сортирует; базовое правило просто отстало.
+        return (job['deadline_step'], -job_score(job, self.goal), job['id'])
 
     def plan(self, view: StepView) -> dict[str, Action]:
         view.refresh()

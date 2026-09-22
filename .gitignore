@@ -18,3 +18,9 @@ frontend/public/
 
 # Выгрузка из Claude Design: макеты пульта в .dc.html. Материал для правок, не исходник.
 design_handoff_cosmostars_console/
+
+# Покадровая выкладка доклада: собирается render.py из deck.html. PDF рядом — деливерабл, кадры — нет.
+slides/export/
+
+# Выгрузка из Claude Design: макет колоды. Тот же случай, что и макеты пульта выше.
+slides/project/

@@ -12,6 +12,7 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 docs/
+slides/
 exports/
 tests/
 архив/

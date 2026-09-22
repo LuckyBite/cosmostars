@@ -1,0 +1,348 @@
+/* Доклад Cosmostars — оформление.
+ *
+ * Палитра взята не из вкусов, а из самого сервиса (frontend/src/styles/base.css):
+ * на слайдах живут его скриншоты, и если у доклада свой синий, а у пульта свой,
+ * снимок читается как чужая вставка. Здесь они одного рода.
+ */
+:root {
+  --plane: #0B0F14;
+  --deep: #070A0F;
+  --surface: #11161E;
+  --inset: #181E28;
+  --line: #273040;
+  --line-soft: #1C2431;
+  --ink: #E9EEF4;
+  --ink-2: #9DAAB9;
+  --ink-3: #7A8794;
+  --ink-4: #556170;
+  --s1: #3D8BFD;
+  --accent: #8B7BFF;
+  --good: #3DD68C;
+  --warn: #F2B53C;
+  --serious: #EE9366;
+  --crit: #FF5F5F;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --out: cubic-bezier(.16, 1, .3, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--deep); color: var(--ink);
+  font-family: var(--sans);
+  overflow: hidden;
+}
+
+/* --- сцена ---------------------------------------------------------------
+ * Слайд всегда 1920×1080, а вписывается масштабированием. Это единственный
+ * способ, при котором отступы и кегли на проекторе те же, что в вёрстке. */
+#stage { position: fixed; inset: 0; overflow: hidden; }
+
+#deck {
+  /* Держится левым верхним углом в центре экрана и оттуда же сдвигается на
+   * половину себя: сетка с place-items здесь не годится — элемент шире экрана,
+   * и центрирование выталкивает его за край вместо того, чтобы центрировать. */
+  position: absolute; left: 50%; top: 50%;
+  width: 1920px; height: 1080px;
+  transform-origin: 0 0;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, .6);
+  background: var(--deep);
+  overflow: hidden;
+}
+
+/* Звёздное поле — общий слой под слайдами, на всю колоду один. */
+#sky { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.slide {
+  position: absolute; inset: 0;
+  padding: 84px 104px 76px;
+  display: none;
+  flex-direction: column;
+  background:
+    radial-gradient(1200px 820px at 84% -16%, rgba(139, 123, 255, .16), rgba(11, 15, 20, 0) 70%),
+    radial-gradient(900px 620px at 8% 108%, rgba(61, 139, 253, .12), rgba(11, 15, 20, 0) 68%),
+    rgba(11, 15, 20, .80);
+  color: var(--ink);
+}
+.slide.live { display: flex; }
+.slide.warm {
+  background:
+    radial-gradient(1200px 820px at 84% -16%, rgba(242, 181, 60, .14), rgba(11, 15, 20, 0) 70%),
+    radial-gradient(900px 620px at 8% 108%, rgba(238, 147, 102, .10), rgba(11, 15, 20, 0) 68%),
+    rgba(11, 15, 20, .84);
+}
+.slide.plain { background: rgba(7, 10, 15, .86); }
+
+/* Въезд слайда. Направление ставит навигация: вперёд — содержимое приходит
+ * справа, назад — слева. Без этого переход читается как мигание, и зритель
+ * теряет, куда он только что шагнул. */
+.slide.in-next { animation: slideNext .5s var(--out) both; }
+.slide.in-prev { animation: slidePrev .5s var(--out) both; }
+@keyframes slideNext { from { opacity: 0; transform: translateX(56px) scale(.985); } }
+@keyframes slidePrev { from { opacity: 0; transform: translateX(-56px) scale(.985); } }
+
+/* --- шапка --------------------------------------------------------------- */
+.head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 32px;
+  border-bottom: 1px solid var(--line-soft); padding-bottom: 20px;
+}
+.head .l { display: flex; align-items: baseline; gap: 20px; }
+.kicker {
+  font-family: var(--mono); font-size: 24px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.time {
+  padding: 6px 18px; border: 1px solid rgba(139, 123, 255, .45); border-radius: 999px;
+  font-family: var(--mono); font-size: 24px; color: var(--accent);
+}
+body:not(.timings) .time { display: none; }
+
+h1 { margin: 0; font-size: 136px; font-weight: 600; line-height: .98; letter-spacing: -.03em; }
+h2 { margin: 48px 0 0; font-size: 68px; font-weight: 600; line-height: 1.06; letter-spacing: -.015em; }
+h2.tight { margin-top: 40px; font-size: 64px; }
+.lead { margin: 26px 0 0; font-size: 36px; line-height: 1.32; color: var(--ink-2); max-width: 1340px; }
+.punch { margin: 52px 0 0; font-size: 38px; line-height: 1.3; color: var(--ink); max-width: 1560px; }
+.punch b { color: var(--accent); font-weight: 600; }
+
+.foot {
+  margin-top: auto; padding-top: 26px;
+  display: flex; justify-content: space-between; gap: 32px;
+  font-family: var(--mono); font-size: 24px; color: var(--ink-4);
+}
+
+/* --- карточки, плитки, чипы ---------------------------------------------- */
+.grid { display: grid; gap: 36px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.card {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 34px 36px; border: 1px solid var(--line); border-radius: 16px;
+  background: linear-gradient(180deg, rgba(24, 30, 40, .72), rgba(17, 22, 30, .5));
+}
+.card.hot { border-color: rgba(242, 181, 60, .42); background: linear-gradient(180deg, rgba(44, 34, 16, .6), rgba(26, 20, 12, .4)); }
+.card.cool { border-color: rgba(139, 123, 255, .42); }
+.card .n { font-family: var(--mono); font-size: 26px; letter-spacing: .16em; color: var(--accent); }
+.card h3 { margin: 0; font-size: 42px; font-weight: 600; line-height: 1.14; }
+.card p { margin: 0; font-size: 31px; line-height: 1.36; color: var(--ink-2); }
+.card.hot p { color: #E3CFA6; }
+.card .tag {
+  margin-top: auto; align-self: flex-start; padding: 10px 22px;
+  border: 1px solid rgba(139, 123, 255, .5); border-radius: 999px;
+  font-family: var(--mono); font-size: 24px; color: var(--accent);
+}
+.card.hot .tag { border-color: rgba(242, 181, 60, .55); color: var(--warn); }
+
+.big {
+  font-family: var(--mono); font-size: 92px; font-weight: 500; line-height: 1;
+  color: var(--s1); font-variant-numeric: tabular-nums;
+}
+.card.hot .big { color: var(--warn); }
+.mid {
+  font-family: var(--mono); font-size: 62px; font-weight: 500; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.cap { font-size: 30px; color: var(--ink-2); }
+.cap.dim { color: var(--ink-3); }
+
+.chips { display: flex; gap: 18px; flex-wrap: wrap; }
+.chip {
+  padding: 14px 28px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 29px; color: var(--ink-2); background: rgba(17, 22, 30, .5);
+}
+.chip.hot { border-color: rgba(242, 181, 60, .45); color: var(--warn); }
+
+/* --- таблица результата --------------------------------------------------- */
+table.res { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.res th {
+  padding: 0 0 14px; font-family: var(--mono); font-size: 24px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 400; text-align: right;
+}
+table.res th:first-child { text-align: left; }
+table.res th.base { color: var(--warn); }
+table.res th.ours { color: var(--s1); }
+table.res td.sec {
+  padding: 20px 0 8px; border-top: 1px solid var(--line); font-size: 27px; color: var(--ink-3);
+}
+table.res td { padding: 10px 0; font-size: 31px; }
+table.res td.num { text-align: right; font-family: var(--mono); font-size: 33px; }
+table.res td.base { color: #D3BE95; }
+table.res td.ours { color: #FFFFFF; }
+table.res td.diff { text-align: right; font-family: var(--mono); font-size: 30px; color: var(--good); }
+table.res td.warnv { color: var(--warn); }
+
+/* --- полосы сравнения ----------------------------------------------------- */
+.bars { display: flex; flex-direction: column; gap: 44px; margin: 52px 0 0; }
+.bar-row { display: flex; flex-direction: column; gap: 16px; }
+.bar-top { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; }
+.bar-top .who { font-size: 38px; font-weight: 600; }
+.bar-top .val { font-family: var(--mono); font-size: 34px; font-variant-numeric: tabular-nums; }
+.bar {
+  height: 76px; border-radius: 10px; background: rgba(24, 30, 40, .8);
+  border: 1px solid var(--line); overflow: hidden;
+}
+.bar i { display: block; height: 100%; width: 0; border-radius: 9px; transition: width 1.2s var(--out); }
+.bar i.hot { background: linear-gradient(90deg, #F2B53C, #C77F22); }
+.bar i.ours { background: linear-gradient(90deg, #3D8BFD, #8B7BFF); }
+.bar-note { font-size: 31px; color: var(--ink-2); }
+.bar-note.hot { color: #E3CFA6; }
+
+/* --- арифметика потолка --------------------------------------------------- */
+.eq { display: flex; align-items: flex-start; gap: 44px; margin: 80px 0 0; }
+.eq .term { display: flex; flex-direction: column; gap: 14px; }
+.eq .huge {
+  font-family: var(--mono); font-size: 132px; font-weight: 500; line-height: 1;
+  font-variant-numeric: tabular-nums; word-spacing: -.28em;
+}
+.eq .op { font-family: var(--mono); font-size: 96px; line-height: 1.2; color: var(--ink-4); }
+.eq .term span:last-child { font-size: 29px; line-height: 1.3; color: var(--ink-2); max-width: 310px; }
+
+/* --- лента времени -------------------------------------------------------- */
+.tl { display: flex; flex-direction: column; gap: 20px; margin: 60px 0 0; }
+.tl-marks { display: flex; align-items: flex-end; font-family: var(--mono); font-size: 26px; color: var(--ink-3); }
+.tl-body { display: flex; height: 96px; }
+.tl-past {
+  width: 25%; flex: none; border-radius: 10px 0 0 10px;
+  background: linear-gradient(90deg, #2A5FBF, #3D8BFD);
+  display: flex; align-items: center; padding: 0 28px;
+}
+.tl-cut { width: 4px; background: var(--warn); box-shadow: 0 0 26px var(--warn); }
+.tl-next {
+  flex: 1; border: 1px dashed rgba(139, 123, 255, .55); border-left: none;
+  border-radius: 0 10px 10px 0; background: rgba(139, 123, 255, .08);
+  display: flex; align-items: center; padding: 0 28px;
+}
+.tl-body span { font-size: 26px; line-height: 1.25; }
+.tl-legend { display: flex; font-size: 27px; color: var(--ink-3); }
+
+/* --- снимок сервиса ------------------------------------------------------- */
+.shot {
+  position: relative;
+  border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  background: var(--surface); box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.shot .chrome {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border-bottom: 1px solid var(--line-soft); background: rgba(7, 10, 15, .8);
+  flex: none;
+}
+.shot .chrome i { width: 11px; height: 11px; border-radius: 50%; background: var(--line); }
+.shot .chrome b {
+  margin-left: 12px; font-family: var(--mono); font-size: 20px; font-weight: 400; color: var(--ink-4);
+}
+.shot img { display: block; width: 100%; }
+.shot.fit { overflow: hidden; }
+.shot.fit img { flex: 1; min-height: 0; object-fit: cover; object-position: top left; }
+.shot-cap { margin: 16px 0 0; font-family: var(--mono); font-size: 23px; color: var(--ink-4); }
+
+/* Указка по снимку: рамка «смотрите сюда» с подписью над ней. */
+.pin {
+  position: absolute; border: 2px solid var(--accent); border-radius: 10px;
+  box-shadow: 0 0 0 4px rgba(139, 123, 255, .14), 0 0 40px rgba(139, 123, 255, .35);
+  pointer-events: none;
+}
+.pin::after {
+  content: attr(data-pin); position: absolute; left: -2px; top: -40px;
+  padding: 4px 12px; border-radius: 6px; background: var(--accent); color: #0B0F14;
+  font-family: var(--mono); font-size: 22px; white-space: nowrap;
+}
+.pin.below::after { top: auto; bottom: -40px; }
+
+/* --- служебное ------------------------------------------------------------ */
+#rail { position: absolute; left: 0; right: 0; top: 0; height: 4px; background: rgba(39, 48, 64, .55); z-index: 5; }
+#rail i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--s1), var(--accent)); transition: width .5s var(--out); }
+#count {
+  position: absolute; right: 40px; bottom: 26px; z-index: 5;
+  font-family: var(--mono); font-size: 22px; color: var(--ink-4);
+}
+#count b { color: var(--ink-2); font-weight: 400; }
+#count .ap { color: var(--accent); }
+#notes {
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 44%; z-index: 6;
+  padding: 30px 104px 34px; overflow: auto;
+  background: rgba(7, 10, 15, .97); border-top: 1px solid var(--line);
+  font-size: 29px; line-height: 1.42; color: var(--ink-2);
+  transform: translateY(101%); transition: transform .35s var(--out);
+}
+#notes b { display: block; margin-bottom: 10px; font-family: var(--mono); font-size: 22px;
+           letter-spacing: .14em; text-transform: uppercase; color: var(--ink-4); font-weight: 400; }
+body.notes #notes { transform: translateY(0); }
+#help {
+  position: absolute; left: 40px; bottom: 26px; z-index: 5;
+  font-family: var(--mono); font-size: 22px; color: var(--ink-4);
+  opacity: 0; transition: opacity .3s;
+}
+#stage:hover #help { opacity: .9; }
+
+/* --- вход элементов -------------------------------------------------------
+ * Элемент с data-a въезжает со своей задержкой. Анимация висит на .live, а не
+ * на элементе, чтобы перезапускаться при каждом заходе на слайд. */
+[data-a] { opacity: 0; }
+.slide.live [data-a] { animation: rise .62s var(--out) both; animation-delay: var(--d, 0s); }
+@keyframes rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+.slide.live [data-a="fade"] { animation-name: fadein; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.slide.live [data-a="zoom"] { animation-name: zoomin; }
+@keyframes zoomin { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+.slide.live [data-a="left"] { animation-name: fromleft; }
+@keyframes fromleft { from { opacity: 0; transform: translateX(-34px); } to { opacity: 1; transform: none; } }
+.slide.live [data-a="right"] { animation-name: fromright; }
+@keyframes fromright { from { opacity: 0; transform: translateX(34px); } to { opacity: 1; transform: none; } }
+.slide.live .pin { animation-name: pinIn; }
+
+/* Полоса суток: каждый столбик вырастает со своей задержкой по номеру шага. */
+.slide.live #daystrip i { animation: grow .5s var(--out) both; animation-delay: var(--d, 0s); }
+@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes pinIn { from { opacity: 0; transform: scale(1.07); } to { opacity: 1; transform: none; } }
+
+/* Пульс у числа, которое докладчик называет голосом. */
+.beat { animation: beat 2.8s var(--ease) infinite; }
+@keyframes beat { 0%, 100% { text-shadow: none; } 50% { text-shadow: 0 0 34px currentColor; } }
+
+/* Титул: орбита вокруг названия. */
+.orbit { position: absolute; right: -180px; top: 40px; width: 900px; height: 900px; pointer-events: none; opacity: .5; }
+.orbit circle { fill: none; stroke: rgba(139, 123, 255, .22); }
+.orbit .sat { fill: var(--accent); }
+.orbit g { transform-origin: 450px 450px; }
+.orbit .r1 { animation: spin 26s linear infinite; }
+.orbit .r2 { animation: spin 40s linear infinite reverse; }
+.orbit .r3 { animation: spin 62s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide, .slide.live [data-a], .slide.live #daystrip i, .orbit g { animation: none !important; }
+  [data-a] { opacity: 1 !important; }
+  .beat { animation: none; }
+  .bar i { transition: none; }
+}
+
+/* --- печать ---------------------------------------------------------------
+ * Организаторы просят файл заранее, и с чужого ноутбука доклад включат из него.
+ * Режим печати разворачивает колоду в столбик по кадру 1920×1080 на страницу:
+ * текст в PDF остаётся текстом, а не картинкой, и его можно искать и копировать.
+ * Включается адресом deck.html?print и тем же скриптом render.py. */
+body.print, body.print html { overflow: visible; }
+body.print #stage { position: static; overflow: visible; }
+body.print #deck {
+  position: static; width: 1920px; height: auto; transform: none !important;
+  box-shadow: none; overflow: visible;
+}
+body.print #sky, body.print #rail, body.print #count, body.print #help, body.print #notes { display: none; }
+body.print .slide {
+  position: relative; inset: auto; display: flex;
+  width: 1920px; height: 1080px;
+  break-after: page; page-break-after: always;
+  animation: none !important;
+}
+body.print .slide:last-child { break-after: auto; page-break-after: auto; }
+body.print [data-a] { opacity: 1 !important; animation: none !important; transform: none !important; }
+body.print .bar i { transition: none; }
+body.print #daystrip i { animation: none !important; transform: none !important; }
+body.print .beat { animation: none; }
+body.print .orbit g { animation: none; }
+
+@page { size: 1920px 1080px; margin: 0; }

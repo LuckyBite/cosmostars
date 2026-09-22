@@ -4,20 +4,52 @@
     {
       "name": "service",
       "runtimeExecutable": "py",
-      "runtimeArgs": ["-3", "-m", "uvicorn", "backend.app.main:app", "--port", "8000"],
+      "runtimeArgs": [
+        "-3",
+        "-m",
+        "uvicorn",
+        "backend.app.main:app",
+        "--port",
+        "8000"
+      ],
       "port": 8000
     },
     {
       "name": "console-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "proto",
       "runtimeExecutable": "py",
-      "runtimeArgs": ["-3", "-m", "http.server", "8770", "--directory", "docs/proto"],
+      "runtimeArgs": [
+        "-3",
+        "-m",
+        "http.server",
+        "8770",
+        "--directory",
+        "docs/proto"
+      ],
       "port": 8770
+    },
+    {
+      "name": "slides",
+      "runtimeExecutable": "py",
+      "runtimeArgs": [
+        "-3",
+        "-m",
+        "http.server",
+        "8780",
+        "--directory",
+        "slides"
+      ],
+      "port": 8780
     }
   ]
 }
