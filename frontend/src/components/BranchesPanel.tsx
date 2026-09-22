@@ -129,13 +129,18 @@ export function BranchesPanel({ run }: { run: RunInfo }) {
     <>
       <Failure error={runs.error ?? fork.error} what="Дерево смен не построилось" />
       <Card title="Дерево смены"
-            note="Узел — точка, в которой оператор остановился и продолжил иначе. Ветвь наследует состояние целиком: заряд, температуру, калибровку и прогресс заданий, — и дальше живёт отдельно."
+            note="Узел — точка, в которой оператор остановился и продолжил иначе. Ветвь наследует состояние целиком: заряд, температуру, калибровку и прогресс заданий, — и дальше живёт отдельно. Свежая ветвь повторяет родителя: разница появится, когда вы измените в ней цель, вбросите сообщение или досчитаете её иначе."
             right={<div className="acts">
               <button className="pill" aria-pressed={showAll} onClick={() => setShowAll((v) => !v)}>
                 все запуски
               </button>
               <button className="btn" onClick={() => fork.mutate(undefined, {
-                onSuccess: (branch) => openRun((branch as RunInfo).run_id),
+                onSuccess: (branch) => {
+                  const made = branch as RunInfo
+                  setCompare('left', run.run_id)
+                  setCompare('right', made.run_id)
+                  openRun(made.run_id)
+                },
               })}>Ветвь отсюда</button>
             </div>}>
         {runs.isPending ? <Loading what="Смены" /> : (
@@ -158,7 +163,11 @@ export function BranchesPanel({ run }: { run: RunInfo }) {
       <Card title="Сравнение вариантов"
             note="Сначала проверка сопоставимости, потом числа: сравнивать ветви с разными сообщениями или разным числом шагов — значит получить красивую, но ложную разницу.">
         {!left || !right || left === right ? (
-          <Note><span>Выберите два узла: «A» и «Б». Пока выбран только один.</span></Note>
+          <Note><span>{!left && !right
+            ? 'Выберите на дереве два узла: кнопка «A» на одном, «Б» на другом.'
+            : left && left === right
+              ? '«A» и «Б» указывают на одну и ту же смену — выберите вторую.'
+              : 'Выбран один узел. Отметьте второй кнопкой «' + (left ? 'Б' : 'A') + '».'}</span></Note>
         ) : report.isPending ? <Loading what="Сравнение" />
           : report.error ? <Failure error={report.error} what="Сравнение не выполнено" />
           : report.data && (
@@ -180,6 +189,15 @@ export function BranchesPanel({ run }: { run: RunInfo }) {
                 </>
               )}
             </div>
+
+            {report.data.metrics.every((row) => row.delta === 0) && (
+              <Note>
+                <span>Все показатели совпали до единицы. Это не сбой сравнения: ветвь
+                  повторяет родителя, пока в ней ничего не изменено. Переключите в одной из
+                  них цель управления, вбросьте сообщение или досчитайте её до другого шага —
+                  и разница появится здесь же.</span>
+              </Note>
+            )}
 
             <div className="scroll">
               <table>

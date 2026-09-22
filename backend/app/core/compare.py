@@ -62,24 +62,29 @@ def _comparability(left: Run, right: Run) -> dict[str, Any]:
 def _verdict(goal: str, left: Run, right: Run,
              left_summary: dict[str, Any], right_summary: dict[str, Any]) -> dict[str, Any]:
     tie: float
+    # Two forms of the same name: one to stand after «больше», one after «по».
+    # The verdict is read aloud at a defence, so it has to be a sentence.
     if goal == 'priority':
         key, tie = 'critical_jobs_completed_on_time', CRITICAL_TIE
         label = 'заданий приоритета 3, завершённых в срок'
+        label_by = 'обязательствам приоритета 3, завершённым в срок'
     else:
         key, tie = 'revenue_usd', REVENUE_TIE_USD
         label = 'выручки за завершённые в срок задания'
+        label_by = 'выручке за завершённые в срок задания'
     delta = left_summary.get(key, 0) - right_summary.get(key, 0)
     if abs(delta) <= tie:
         secondary = 'revenue_usd' if goal == 'priority' else 'critical_jobs_completed_on_time'
+        secondary_name = ('выручке за завершённые в срок задания' if secondary == 'revenue_usd'
+                          else 'обязательствам приоритета 3, завершённым в срок')
         tiebreak = left_summary.get(secondary, 0) - right_summary.get(secondary, 0)
         if abs(tiebreak) <= (REVENUE_TIE_USD if secondary == 'revenue_usd' else CRITICAL_TIE):
             return {'winner': None, 'metric': key, 'delta': delta,
-                    'text': f'Результаты сопоставимы: одинаково по {label} '
-                            'и по дополнительному показателю'}
+                    'text': f'Результаты сопоставимы: ветви равны и по {label_by}, '
+                            f'и по {secondary_name}'}
         winner = left if tiebreak > 0 else right
         return {'winner': winner.id, 'metric': secondary, 'delta': tiebreak,
-                'text': f'По {label} ветви равны; перевес даёт '
-                        f'дополнительный показатель «{secondary}»'}
+                'text': f'По {label_by} ветви равны; перевес даёт {secondary_name}'}
     winner = left if delta > 0 else right
     return {'winner': winner.id, 'metric': key, 'delta': delta,
             'text': f'Ветвь «{winner.title}» даёт больше {label}: разница {abs(delta):g}'}

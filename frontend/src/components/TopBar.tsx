@@ -19,14 +19,28 @@ export function TopBar({ run }: { run: RunInfo }) {
   const tab = useConsole((s) => s.tab)
   const openRun = useConsole((s) => s.openRun)
   const closeRun = useConsole((s) => s.closeRun)
+  const setTab = useConsole((s) => s.setTab)
+  const setCompare = useConsole((s) => s.setCompare)
   const [theme, setTheme] = useState<'dark' | 'light' | null>(null)
 
   const goal = useRunMutation((next: Goal) => api.setGoal(run.run_id, next), run.run_id)
   const fork = useRunMutation(() => api.fork(run.run_id), run.run_id)
   const busy = goal.isPending || fork.isPending
 
+  // Forking used to drop the operator into a run that looked exactly like the
+  // one they left — same numbers, no explanation. The branch is now opened on
+  // the tree, already paired against its parent, so the thing that just
+  // happened is visible and the next move is in front of them.
   const onFork = () =>
-    fork.mutate(undefined, { onSuccess: (branch) => openRun((branch as RunInfo).run_id) })
+    fork.mutate(undefined, {
+      onSuccess: (branch) => {
+        const made = branch as RunInfo
+        setCompare('left', run.run_id)
+        setCompare('right', made.run_id)
+        openRun(made.run_id)
+        setTab('branches')
+      },
+    })
 
   const onExport = async () => {
     const result = await api.result(run.run_id)
@@ -74,7 +88,7 @@ export function TopBar({ run }: { run: RunInfo }) {
 
         <div className="acts">
           <button className="btn" disabled={busy} onClick={onFork}
-                  title="Продолжение из этого же состояния">
+                  title="Отделить продолжение от этого шага и сравнить его с текущей сменой">
             <GitBranch size={13} aria-hidden /> Ветвь
           </button>
           <button className="btn" onClick={onExport} title="Выгрузка cosmo-B-ops-result-1.0">
