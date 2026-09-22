@@ -70,7 +70,11 @@
 .head {
   position: sticky; top: 0; z-index: 10; background: var(--plane);
   border-bottom: 1px solid var(--line); padding: 12px 20px;
-  display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center;
+  display: flex; flex-wrap: wrap; gap: 12px 16px;
+  /* The goal switch carries a label above it and the actions do not. Centring
+     the two blocks put their controls on different lines; aligning the bottoms
+     puts every control the operator can press on one. */
+  align-items: flex-end;
 }
 .head-title { display: flex; flex-direction: column; gap: 3px; margin-right: auto; min-width: 0; }
 .head-title h1 { margin: 0; font-size: 16px; font-weight: 600; }
@@ -364,7 +368,16 @@
 
 /* --- canvas --------------------------------------------------------------- */
 
-.canvas-host { position: relative; display: flex; gap: 6px; overflow-x: auto; }
+/* The canvas is bigger than its window whenever it is zoomed in, and the window
+   clips it: the operator moves the canvas, not a scrollbar. */
+.canvas-host { position: relative; display: flex; gap: 6px; overflow: hidden; }
+.canvas-view { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+.canvas-view .canvas-plot { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.canvas-rows { overflow: hidden; }
+.canvas-rows-inner { display: flex; flex-direction: column; }
+.canvas-zoom { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.canvas-zoom .mono { font-family: var(--mono); font-size: 11px; color: var(--ink-3); min-width: 42px; text-align: center; }
+.canvas-zoom i { font-style: normal; font-size: 11px; color: var(--ink-4); margin-left: 4px; }
 .canvas-rows { display: flex; flex-direction: column; flex: none; }
 .canvas-row-label {
   background: none; border: 0; padding: 0 4px 0 0; text-align: right;
@@ -374,6 +387,7 @@
 .canvas-row-label:hover { color: var(--accent); }
 .canvas-plot { display: block; flex: none; border: 1px solid var(--line-soft); border-radius: 4px; }
 .canvas-plot:hover { cursor: crosshair; }
+body.col-resizing .canvas-plot:hover { cursor: col-resize; }
 .canvas-sides {
   display: flex; justify-content: space-between; font-family: var(--mono);
   font-size: 10px; color: var(--ink-3); pointer-events: none;
@@ -381,11 +395,44 @@
 
 /* --- explain -------------------------------------------------------------- */
 
+/* The line between the table and the breakdown is the operator's to move: which
+   of the two needs the width depends on the question being asked. */
 .jobs-layout {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-  gap: 16px; align-items: start;
+  display: grid; grid-template-columns: var(--left, 52%) 10px minmax(280px, 1fr);
+  gap: 6px; align-items: start;
 }
-.jobs-scroll, .sats-scroll { max-height: 62vh; overflow-y: auto; }
+.split-grip {
+  align-self: stretch; min-height: 120px; cursor: col-resize; border-radius: 3px;
+  background: linear-gradient(var(--line), var(--line)) center / 2px 100% no-repeat;
+  transition: background-color .12s var(--ease);
+}
+.split-grip:hover { background-color: var(--line-soft); }
+body.col-resizing { cursor: col-resize; user-select: none; }
+
+.jobs-scroll, .sats-scroll { max-height: 62vh; overflow: auto; }
+/* Fixed layout is what makes a column width mean something; a cell narrower
+   than its content is then cut with an ellipsis instead of spilling into the
+   next column or being clipped away by the scroller. */
+.grid-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grid-table th { position: relative; padding-right: 14px; }
+.th-sort {
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+  display: inline-flex; align-items: baseline; gap: 3px; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.th-sort:hover { color: var(--ink); }
+.th-sort s { text-decoration: none; color: var(--accent); }
+.num .th-sort { justify-content: flex-end; width: 100%; }
+.th-grip {
+  position: absolute; top: 0; right: 0; width: 9px; height: 100%;
+  cursor: col-resize; touch-action: none;
+}
+.th-grip::after {
+  content: ''; position: absolute; top: 2px; bottom: 7px; right: 4px;
+  width: 1px; background: var(--line);
+}
+.th-grip:hover::after { background: var(--accent); }
 /* Virtualised rows are measured, so the row height has to be stable: a cell that
    grows by a chip must not change the row the scrollbar was sized against. */
 .jobs-scroll tbody tr { height: 34px; }
@@ -478,6 +525,9 @@
     padding: 8px 12px; overflow-x: auto; overflow-y: hidden;
   }
   .rail-brand, .rail-group, .rail-foot { display: none; }
+  /* One column below the threshold: there is no width left to trade. */
+  .jobs-layout { grid-template-columns: 1fr; gap: 16px; }
+  .split-grip { display: none; }
   .transport { left: 0; }
   .screen { padding-bottom: 148px; }
 }

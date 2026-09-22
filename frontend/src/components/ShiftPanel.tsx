@@ -120,8 +120,15 @@ export function ShiftPanel({ run }: { run: RunInfo }) {
           of={num(sums.jobs_total)}
           fill="var(--s1)"
           share={share(sums.jobs_completed, sums.jobs_total)}
+          // The identity holds only where the planner actually reached the
+          // ceiling. Printing it on a shift that fell short of the ceiling
+          // states an arithmetic that does not add up, so the shortfall is
+          // named instead — that distinction is the whole point of the tile.
           foot={whole && impossible > 0
-            ? <>Ровно {num(run.summary.jobs_total)} − {num(impossible)} невыполнимых</>
+            ? unfinished === impossible
+              ? <>Ровно {num(run.summary.jobs_total)} − {num(impossible)} невыполнимых</>
+              : <>Потолок {num(run.summary.jobs_total - impossible)}: {num(impossible)} невыполнимы
+                  по сертификату, не добрано {num(unfinished - impossible)}</>
             : <>Нарастающим итогом к курсору</>}
         />
         <Metric

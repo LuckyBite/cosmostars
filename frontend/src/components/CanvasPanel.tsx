@@ -22,6 +22,15 @@ import { JobExplain } from './JobExplain'
 const ROW_H = 12
 const MIN_CELL = 3
 const LABELS = 44
+/** The gap between the labels and the plot, mirrored from the stylesheet so
+ *  that «вписать» fits the plot to the width that is actually left for it. */
+const GAP = 6
+/** How far the canvas may be pulled in and pushed out around «вписать». */
+const ZOOM_MIN = 1
+const ZOOM_MAX = 8
+const ZOOM_STEP = 1.35
+/** Taller than this and the canvas stops growing: it starts panning. */
+const VIEW_MAX = 620
 
 /** How pale the intent layer is drawn. It is a plan, not a fact. */
 const INTENT_ALPHA = 0.3
@@ -54,14 +63,24 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const layers = useRef<{ fact: HTMLCanvasElement; intent: HTMLCanvasElement } | null>(null)
+  const viewRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(1080)
   const [hover, setHover] = useState<{ x: number; y: number; sid: string; step: number } | null>(null)
+  // Zoom 1 is «вписать»: the whole shift across the available width. Above it
+  // the canvas is bigger than its window and the operator drags it around,
+  // which is what a scrollbar under a 288-step grid was pretending to do.
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
 
   const total = grid.data?.total_steps ?? run.total_steps
   const sats = grid.data?.satellites ?? []
-  const cell = Math.max(MIN_CELL, (width - LABELS) / total)
+  const fitCell = Math.max(MIN_CELL, (width - LABELS - GAP) / total)
+  const cell = fitCell * zoom
+  const rowH = ROW_H * zoom
   const plotW = Math.round(cell * total)
-  const plotH = ROW_H * sats.length
+  const plotH = Math.round(rowH * sats.length)
+  const viewW = Math.max(0, width - LABELS - GAP)
+  const viewH = Math.min(plotH, VIEW_MAX)
   const index = useMemo(() => priceIndex(prices.data?.prices), [prices.data])
 
   useEffect(() => {
@@ -101,7 +120,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
     // Layer one: the log.
     sats.forEach((sid, row) => {
       const line = grid.data.actions[sid] ?? ''
-      const y = row * ROW_H
+      const y = row * rowH
       for (let step = 0; step < total; step++) {
         const code = line.charCodeAt(step)
         const fill = code === 100 ? colors.d : code === 114 ? colors.r
@@ -109,7 +128,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
           : code === 46 ? colors.idle : null
         if (!fill) continue
         fc.fillStyle = fill
-        fc.fillRect(left(step), y + 1, span(step, step + 1), ROW_H - 2)
+        fc.fillRect(left(step), y + 1, span(step, step + 1), rowH - 2)
       }
     })
 
@@ -122,7 +141,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
       if (row === undefined) continue
       for (const [from, to] of item.downlink) {
         for (let step = from; step < Math.min(to, total); step++) {
-          ic.fillRect(left(step), row * ROW_H + ROW_H / 2 - 1, span(step, step + 1), 2)
+          ic.fillRect(left(step), row * rowH + rowH / 2 - 1, span(step, step + 1), 2)
         }
       }
     }
@@ -133,7 +152,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
       for (const sid of Object.keys(byS)) {
         const row = rowOf.get(sid)
         if (row === undefined) continue
-        ic.fillRect(left(k), row * ROW_H + 1, span(k, k + 1), ROW_H - 2)
+        ic.fillRect(left(k), row * rowH + 1, span(k, k + 1), rowH - 2)
       }
     }
     // Announced unavailability applies to both sides of the cursor.
@@ -142,14 +161,14 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
       if (row === undefined) continue
       for (const context of [fc, ic]) {
         context.fillStyle = colors.off
-        context.fillRect(left(outage.start_step), row * ROW_H + 1,
-                         span(outage.start_step, outage.end_step), ROW_H - 2)
+        context.fillRect(left(outage.start_step), row * rowH + 1,
+                         span(outage.start_step, outage.end_step), rowH - 2)
       }
     }
     layers.current = { fact, intent }
     draw()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid.data, plan.data, contacts.data, cell, plotW, plotH, total, sats.length])
+  }, [grid.data, plan.data, contacts.data, cell, rowH, plotW, plotH, total, sats.length])
 
   // --- per-frame blit -------------------------------------------------------
   const draw = useCallback(() => {
@@ -187,6 +206,75 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
   }, [cursor, cell, plotW, plotH, total])
 
   useEffect(draw, [draw])
+
+  // The canvas cannot be dragged off its own window: clamping happens in one
+  // place so that zooming, resizing and dragging all obey the same bounds.
+  const clamp = useCallback((next: { x: number; y: number }) => ({
+    x: Math.min(0, Math.max(viewW - plotW, next.x)),
+    y: Math.min(0, Math.max(viewH - plotH, next.y)),
+  }), [viewW, plotW, viewH, plotH])
+
+  useEffect(() => { setPan((prev) => clamp(prev)) }, [clamp])
+
+  // Zooming keeps the point under the pointer where it was; anything else and
+  // the operator loses the step they were looking at.
+  const zoomAround = useCallback((factor: number, originX: number, originY: number) => {
+    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * factor))
+    if (next === zoom) return
+    const scale = next / zoom
+    setZoom(next)
+    setPan((prev) => ({
+      x: originX - scale * (originX - prev.x),
+      y: originY - scale * (originY - prev.y),
+    }))
+  }, [zoom])
+
+  const fitAll = () => { setZoom(1); setPan({ x: 0, y: 0 }) }
+  const zoomFromCentre = (factor: number) => zoomAround(factor, viewW / 2, viewH / 2)
+
+  // React listens for wheel passively, and a passive listener may not stop the
+  // page from scrolling — so this one is attached by hand.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      event.preventDefault()
+      const box = view.getBoundingClientRect()
+      zoomAround(event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP,
+                 event.clientX - box.left, event.clientY - box.top)
+    }
+    view.addEventListener('wheel', onWheel, { passive: false })
+    return () => view.removeEventListener('wheel', onWheel)
+  }, [zoomAround])
+
+  // A press is a drag or a click, and which one it was is known only when it
+  // ends: four pixels of travel separate «поставить курсор» from «подвинуть».
+  const drag = useRef<{ x: number; y: number; pan: { x: number; y: number }; moved: boolean } | null>(null)
+
+  const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = { x: event.clientX, y: event.clientY, pan, moved: false }
+  }
+  const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const active = drag.current
+    if (!active) return
+    const dx = event.clientX - active.x
+    const dy = event.clientY - active.y
+    if (!active.moved && Math.abs(dx) + Math.abs(dy) < 4) return
+    active.moved = true
+    setHover(null)
+    setPan(clamp({ x: active.pan.x + dx, y: active.pan.y + dy }))
+  }
+  const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const active = drag.current
+    drag.current = null
+    if (!active || active.moved) return
+    const hit = cellAt(event)
+    if (!hit) return
+    setCursor(hit.step)
+    void resolveJob(hit.sid, hit.step)
+  }
 
   const cellAt = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const box = event.currentTarget.getBoundingClientRect()
@@ -233,29 +321,42 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
         ]} />}
       >
         {grid.isPending ? <Loading what="Сетка смены" /> : (
+          <>
+          <div className="canvas-zoom">
+            <button className="btn slim" onClick={() => zoomFromCentre(1 / ZOOM_STEP)}
+                    disabled={zoom <= ZOOM_MIN} aria-label="Отдалить">−</button>
+            <span className="mono">{Math.round(zoom * 100)}%</span>
+            <button className="btn slim" onClick={() => zoomFromCentre(ZOOM_STEP)}
+                    disabled={zoom >= ZOOM_MAX} aria-label="Приблизить">+</button>
+            <button className="btn slim" onClick={fitAll} disabled={zoom === 1}>Вписать</button>
+            <i>Ctrl + колесо — масштаб. Перетаскивание — по полотну. Клик — курсор на шаг.</i>
+          </div>
           <div className="canvas-host" ref={hostRef}>
-            <div className="canvas-rows" style={{ width: LABELS }}>
-              {sats.map((sid) => (
-                <button key={sid} className="canvas-row-label" style={{ height: ROW_H }}
-                        onClick={() => useConsole.getState().selectSatellite(sid)}>{sid}</button>
-              ))}
+            <div className="canvas-rows" style={{ width: LABELS, height: viewH }}>
+              <div className="canvas-rows-inner" style={{ transform: `translateY(${pan.y}px)` }}>
+                {sats.map((sid) => (
+                  <button key={sid} className="canvas-row-label" style={{ height: rowH }}
+                          onClick={() => useConsole.getState().selectSatellite(sid)}>{sid}</button>
+                ))}
+              </div>
             </div>
+            <div className="canvas-view" ref={viewRef} style={{ height: viewH }}>
             <canvas
               ref={canvasRef}
               className="canvas-plot"
-              style={{ width: plotW, height: plotH }}
+              style={{ width: plotW, height: plotH, transform: `translate(${pan.x}px, ${pan.y}px)` }}
               onMouseLeave={() => setHover(null)}
               onMouseMove={(event) => {
+                if (drag.current?.moved) return
                 const hit = cellAt(event)
                 setHover(hit ? { ...hit, x: event.clientX, y: event.clientY } : null)
               }}
-              onClick={(event) => {
-                const hit = cellAt(event)
-                if (!hit) return
-                setCursor(hit.step)
-                void resolveJob(hit.sid, hit.step)
-              }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={() => { drag.current = null }}
             />
+            </div>
             {hover && (
               <div className="tip" style={{ display: 'block', left: hover.x + 14, top: hover.y + 12 }}>
                 <b>{hover.sid} · шаг {hover.step}</b>
@@ -273,6 +374,7 @@ export function CanvasPanel({ run }: { run: RunInfo }) {
               </div>
             )}
           </div>
+          </>
         )}
         <div className="canvas-sides" style={{ paddingLeft: LABELS }} aria-hidden>
           <span>← факт</span>
